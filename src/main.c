@@ -19,6 +19,7 @@ void panic(const char* s) {
 
 struct Message {
     int priority;
+    char application[64];
 };
 
 int parse_message(struct Message* result, char* message) {
@@ -55,16 +56,17 @@ int parse_message(struct Message* result, char* message) {
 
 
     // Parse date
+    // May 10 03:09:59 filterlog: 5,,,....
     char month[8];
     memset(&month, '\0', sizeof(month));  // makes valgrind happy as the above char contains uninitialized memory
-    int day=0, hour=0, minute=0, second=0;
+    int day, hour, minute, second;
     {
         int msg_len = strlen(message);
         char message_fromdate[4096];
         memset(&message_fromdate, '\0', sizeof(message_fromdate));
         memcpy(message_fromdate, &message[position], msg_len - position);
-        if(sscanf(message_fromdate, "%s %d %d:%d:%d", month, &day, &hour, &minute, &second) != 5) {
-            return 1;
+        if(sscanf(message_fromdate, "%s %d %d:%d:%d", month, &day, &hour, &minute, &second) != 5) {  // TODO replace this BS with %n like below
+            return 1;  // Failed to parse all desired fields
         }
     } // frees message_fromdate, but is this pointless?
 
@@ -74,10 +76,27 @@ int parse_message(struct Message* result, char* message) {
     assert(date_length > 0);
     position += date_length + 1;  // position now at beginning of HOSTNAME field
 
-    char msg_remaining[4096];
-    memset(&msg_remaining, '\0', sizeof(msg_remaining));
-    memcpy(msg_remaining, &message[position], strlen(message) - position);
-    printf("'%s'\n", msg_remaining);
+    // char msg_remaining[4096];
+    // memset(&msg_remaining, '\0', sizeof(msg_remaining));
+    // memcpy(msg_remaining, &message[position], strlen(message) - position);
+    // printf("'%s'\n", msg_remaining);
+    // or
+    // memmove(message, &message[position], strlen(message) - position);
+    // printf("'%s'\n", message);
+
+
+    // Parse APPLICATION
+    // filterlog: 5,,,1000000103,cpsw0,match....
+    char application[64];  // TODO check max length
+    int app_length;
+    if(sscanf(message + position, "%s%n", application, &app_length) != 1) {  // %n not counted in returned field count
+        return 1;  // Failed to parse all desired fields
+    }
+    application[app_length-1] = '\0';  // Remove the trailing :
+    memcpy(result->application, application, sizeof(application));
+
+    position += app_length + 1;
+    printf("remaining: '%s'\n", message + position + 1);
 
     return 0;
 }
@@ -146,7 +165,7 @@ int main(int argc, char** argv) {
         //printf("msg[size_recvd] is: %d", msg[size_recvd]);
         msg[size_recvd] = '\0'; // We receive 1 full string at a time
         if(parse_message(&result, msg) != 1) {
-            printf("message is valid, priority %d\n", result.priority);
+            printf("message is valid,\n\tpriority: %d\n\tapplication: %s\n", result.priority, result.application);
         }
     }
 
