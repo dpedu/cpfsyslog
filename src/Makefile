@@ -1,4 +1,4 @@
-CC=gcc
+CC=gcc -Wall
 CFLAGS=-g -I.
 DEPS=
 OBJ=main.o

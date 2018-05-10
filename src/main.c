@@ -54,26 +54,14 @@ int parse_message(struct Message* result, char* message) {
     if (num_digits == 0) return 1; // empty priority <> ?
     result->priority = atoi(digits);
 
-
     // Parse date
     // May 10 03:09:59 filterlog: 5,,,....
     char month[8];
     memset(&month, '\0', sizeof(month));  // makes valgrind happy as the above char contains uninitialized memory
-    int day, hour, minute, second;
-    {
-        int msg_len = strlen(message);
-        char message_fromdate[4096];
-        memset(&message_fromdate, '\0', sizeof(message_fromdate));
-        memcpy(message_fromdate, &message[position], msg_len - position);
-        if(sscanf(message_fromdate, "%s %d %d:%d:%d", month, &day, &hour, &minute, &second) != 5) {  // TODO replace this BS with %n like below
-            return 1;  // Failed to parse all desired fields
-        }
-    } // frees message_fromdate, but is this pointless?
-
-    // Advance position by finding the length of the date
-    char datestr[24];
-    int date_length = sprintf(datestr, "%s %d %02d:%02d:%02d", month, day, hour, minute, second);
-    assert(date_length > 0);
+    int day, hour, minute, second, date_length;
+    if(sscanf(message + position, "%s %d %d:%d:%d%n", month, &day, &hour, &minute, &second, &date_length) != 5) {
+        return 1;  // Failed to parse all desired fields
+    }
     position += date_length + 1;  // position now at beginning of HOSTNAME field
 
     // char msg_remaining[4096];
@@ -83,7 +71,6 @@ int parse_message(struct Message* result, char* message) {
     // or
     // memmove(message, &message[position], strlen(message) - position);
     // printf("'%s'\n", message);
-
 
     // Parse APPLICATION
     // filterlog: 5,,,1000000103,cpsw0,match....
@@ -96,11 +83,10 @@ int parse_message(struct Message* result, char* message) {
     memcpy(result->application, application, sizeof(application));
 
     position += app_length + 1;
-    printf("remaining: '%s'\n", message + position + 1);
 
+    printf("remaining: '%s'\n", message + position);
     return 0;
 }
-
 
 
 int main(int argc, char** argv) {
