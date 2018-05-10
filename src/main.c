@@ -35,35 +35,54 @@ int parse_message(struct Message* result, char* message) {
     if (strlen(message) < 3) return 1;
     // Must start with <
     if (message[0] != '<') return 1;
-
-    printf("%lu\n", strlen(message));
-    // const char delim = " "
-
     char digits[] = "\0\0\0";
     int num_digits = 0;
     int position = 1;
     //bool found_priority_end = false; // TODO
-
     while (position < 4) {
-        printf("inspecting %c\n", message[position]);
         if(!isdigit(message[position])) return 1; // priority must be numeric
         digits[num_digits] = message[position];
         num_digits++;
         position++;
         if (message[position] == '>') {
+            position++; // Now sits on the first character of the ISOTIMESTAMP
             break;
         }
         // break;
     }
-    if (num_digits == 0) return 1; // empty priority >< ?
-
-    printf("found digits %d, aka %d\n", atoi(digits), atoi(digits)/2);
-    // result = Message{atoi(digits)};
+    if (num_digits == 0) return 1; // empty priority <> ?
     result->priority = atoi(digits);
 
-    // assert(0);
-    // *strtok(char *str, const char *delim)
+
+    // Parse date
+    char month[8];
+    memset(&month, '\0', sizeof(month));  // makes valgrind happy as the above char contains uninitialized memory
+    int day=0, hour=0, minute=0, second=0;
+    {
+        int msg_len = strlen(message);
+        char message_fromdate[4096];
+        memset(&message_fromdate, '\0', sizeof(message_fromdate));
+        memcpy(message_fromdate, &message[position], msg_len - position);
+        if(sscanf(message_fromdate, "%s %d %d:%d:%d", month, &day, &hour, &minute, &second) != 5) {
+            return 1;
+        }
+    } // frees message_fromdate, but is this pointless?
+
+    // Advance position by finding the length of the date
+    char datestr[24];
+    int date_length = sprintf(datestr, "%s %d %02d:%02d:%02d", month, day, hour, minute, second);
+    assert(date_length > 0);
+    position += date_length + 1;  // position now at beginning of HOSTNAME field
+
+    char msg_remaining[4096];
+    memset(&msg_remaining, '\0', sizeof(msg_remaining));
+    memcpy(msg_remaining, &message[position], strlen(message) - position);
+    printf("'%s'\n", msg_remaining);
+
+    return 0;
 }
+
+
 
 int main(int argc, char** argv) {
     int sock_fd;
@@ -72,7 +91,7 @@ int main(int argc, char** argv) {
     unsigned int portl;
     unsigned short port;
     int size_recvd;
-    char msg[1024];
+    char msg[4096];
     socklen_t addrlen;
 
     if (argc != 2) {
@@ -115,6 +134,7 @@ int main(int argc, char** argv) {
                                      &addrlen /* length of buffer to receive peer info */
                                     )) < 0)
             panic("recvfrom");
+        assert(size_recvd < sizeof(msg));  // messages can't be longer than our buffer
 
         assert(addrlen == sizeof(struct sockaddr_in));
 
@@ -123,7 +143,9 @@ int main(int argc, char** argv) {
         //        inet_ntoa(my_peer_addr.sin_addr), ntohs(my_peer_addr.sin_port), size_recvd, msg);
         struct Message result;
         // printf("XXXsize: %lu", sizeof(result)); // curious how big the struct gets
-        if(parse_message(&result, msg)) {
+        //printf("msg[size_recvd] is: %d", msg[size_recvd]);
+        msg[size_recvd] = '\0'; // We receive 1 full string at a time
+        if(parse_message(&result, msg) != 1) {
             printf("message is valid, priority %d\n", result.priority);
         }
     }
