@@ -9,33 +9,35 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <limits.h>
-
 #include "helpers.h"
 
 // UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf
 
-void panic(const char* s) {
-    perror(s);
-    exit(1);
-}
-
-// TODO check max app name length
-#define MSG_APP_LEN 64
-
-struct Message {
-    int priority;
-    char application[MSG_APP_LEN];
-};
 
 #define DF_MONTH_LEN 9
 
 struct Datefields {
-    char month[DF_MONTH_LEN]; // TODO numeric indicator?
+    char month[DF_MONTH_LEN];  // TODO numeric indicator?
     int day;
     int hour;
     int minute;
     int second;
 };
+
+
+#define MSG_APP_LEN 64  // TODO check max app name length
+
+struct Message {
+    int priority;
+    char application[MSG_APP_LEN];
+    struct Datefields date;
+};
+
+
+void panic(const char* s) {
+    perror(s);
+    exit(1);
+}
 
 
 int parse_priority(char* message, int* priority, int* position) {
@@ -122,6 +124,7 @@ int parse_message(struct Message* result, char* message) {
     if(parse_datefield(message, &date, &position) != 0) {
         return 1;
     }
+    result->date = date;
     position++;  // position now at beginning of HOSTNAME field
 
     // Parse APPLICATION
@@ -147,45 +150,40 @@ int parse_message(struct Message* result, char* message) {
 
 
 int main(int argc, char** argv) {
-    int sock_fd;
-    struct sockaddr_in my_addr, my_peer_addr;
-    char* endptr;
-    unsigned int portl;
-    unsigned short port;
-    char msg[4096];
-    socklen_t addrlen;
-
     if (argc != 2) {
         fprintf(stderr, "usage: %s <port>\n", argv[0]);
         exit(1);
     }
 
-    /* convert from string to int */
-    portl = strtol(argv[1], &endptr, 10);
-    if (endptr == NULL || portl == 0)
-    panic("strtol");
-
+    // Parse port number to integer
+    char* portend;
+    unsigned int portl;
+    portl = strtol(argv[1], &portend, 10);
+    if (portend == NULL) panic("strtol");
     assert(portl < USHRT_MAX);
-    port = (unsigned short)portl;
+    unsigned short port = (unsigned short)portl;
 
-    /*
-    * Note! This code is not the same as what you need to do in lab1.
-    */
+    // Create socket
+    int sock_fd;
+    char msg[4096];
     if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         panic("socket");
+
+    // Set socket options
     int one = 1;
     setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
+    // Bind socket
+    struct sockaddr_in my_addr, my_peer_addr;
     memset(&my_addr, 0, sizeof(my_addr));
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = INADDR_ANY;
     my_addr.sin_port = htons(port);
-
     if (bind(sock_fd, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in)) < 0)
         panic("bind failed");
 
+    socklen_t addrlen = sizeof(struct sockaddr_in);
     while (1) {
-        addrlen = sizeof(struct sockaddr_in);
         int size_recvd;
         if ((size_recvd = recvfrom(sock_fd, /* socket */
                                      msg, /* buffer */
@@ -208,7 +206,9 @@ int main(int argc, char** argv) {
         //printf("msg[size_recvd] is: %d", msg[size_recvd]);
         msg[size_recvd] = '\0'; // We receive 1 full string at a time
         if(parse_message(&result, msg) != 1) {
-            printf("message is valid:\n\tpriority: %d\n\tapplication: %s\n", result.priority, result.application);
+            printf("message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n",
+                result.priority, result.application, result.date.month, result.date.day, result.date.hour,
+                result.date.minute, result.date.second);
         }
     }
 
