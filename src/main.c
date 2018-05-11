@@ -10,17 +10,79 @@
 #include <netdb.h>
 #include <limits.h>
 
-// Mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf
+// UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf
 
 void panic(const char* s) {
     perror(s);
     exit(1);
 }
 
+
 struct Message {
     int priority;
     char application[64];
 };
+
+
+struct Datefields {
+    char month[9];
+    int day;
+    int hour;
+    int minute;
+    int second;
+};
+
+
+int parse_priority(char* message, int* priority, int* position) {
+    /*
+        Given a string that begins with a message something like: <123>foo
+        Parse out the number (123) and place it in the passed `priority` int pointer
+        The position after the final `>` will be placed in the passed `position` int pointer
+        Returns 0 on success or something else on failure
+    */
+    // Must have >3 chars to form <x> priority
+    if (strlen(message) < 3) return 1;
+    // Must start with <
+    if (message[0] != '<') return 1;
+    char digits[4];
+    memset(&digits, '\0', sizeof(digits));
+    int num_digits = 0;
+    int pos = 1;
+    //bool found_priority_end = false; // TODO
+    while (pos < 4) {
+        if(!isdigit(message[pos])) return 1; // priority must be numeric
+        digits[num_digits] = message[pos];
+        num_digits++;
+        pos++;
+        if (message[pos] == '>') {
+            break;
+        }
+    }
+    // TODO if escape the loop because pos >= 4, we never found '>'
+    if (num_digits == 0) return 1; // empty priority <> ?
+    *priority = atoi(digits);
+    *position = pos;
+    return 0;
+}
+
+
+int parse_datefield(char* message, struct Datefields* date, int* position) {
+    /*
+        Given a message+position pointers, where message + position in a string like:
+            May 10 03:09:59 filterlog: 5,,,....
+        Parse out the date and place the fields in the passed datefields struct pointer
+        Position will be advanced to the character after the parsed data
+    */
+    // char month[8];
+    // memset(&month, '\0', sizeof(month));  // makes valgrind happy as the above char contains uninitialized memory
+    int date_length;
+    if(sscanf(message + *position, "%s %d %d:%d:%d%n",
+              date->month, &(date->day), &(date->hour), &(date->minute), &(date->second), &date_length) != 5) {
+        return 1;  // Failed to parse all desired fields
+    }
+    *position += date_length;
+    return 0;
+}
 
 int parse_message(struct Message* result, char* message) {
     /*
@@ -31,38 +93,19 @@ int parse_message(struct Message* result, char* message) {
         Assumes null termed string
     */
     printf("Got message: %s\n", message);
+    int priority = 0;
+    int position = 0;
+    if(parse_priority(message, &priority, &position) != 0) return 1;
+    result->priority = priority;
+    position++; // Now sits on the first character of the ISOTIMESTAMP
 
-    // Must have >3 chars to form <x> priority
-    if (strlen(message) < 3) return 1;
-    // Must start with <
-    if (message[0] != '<') return 1;
-    char digits[] = "\0\0\0";
-    int num_digits = 0;
-    int position = 1;
-    //bool found_priority_end = false; // TODO
-    while (position < 4) {
-        if(!isdigit(message[position])) return 1; // priority must be numeric
-        digits[num_digits] = message[position];
-        num_digits++;
-        position++;
-        if (message[position] == '>') {
-            position++; // Now sits on the first character of the ISOTIMESTAMP
-            break;
-        }
-        // break;
-    }
-    if (num_digits == 0) return 1; // empty priority <> ?
-    result->priority = atoi(digits);
 
     // Parse date
-    // May 10 03:09:59 filterlog: 5,,,....
-    char month[8];
-    memset(&month, '\0', sizeof(month));  // makes valgrind happy as the above char contains uninitialized memory
-    int day, hour, minute, second, date_length;
-    if(sscanf(message + position, "%s %d %d:%d:%d%n", month, &day, &hour, &minute, &second, &date_length) != 5) {
-        return 1;  // Failed to parse all desired fields
+    struct Datefields date;
+    if(parse_datefield(message, &date, &position) != 0) {
+        return 1;
     }
-    position += date_length + 1;  // position now at beginning of HOSTNAME field
+    position++;  // position now at beginning of HOSTNAME field
 
     // char msg_remaining[4096];
     // memset(&msg_remaining, '\0', sizeof(msg_remaining));
@@ -151,7 +194,7 @@ int main(int argc, char** argv) {
         //printf("msg[size_recvd] is: %d", msg[size_recvd]);
         msg[size_recvd] = '\0'; // We receive 1 full string at a time
         if(parse_message(&result, msg) != 1) {
-            printf("message is valid,\n\tpriority: %d\n\tapplication: %s\n", result.priority, result.application);
+            printf("message is valid:\n\tpriority: %d\n\tapplication: %s\n", result.priority, result.application);
         }
     }
 
