@@ -10,6 +10,8 @@
 #include <netdb.h>
 #include <limits.h>
 
+#include "helpers.h"
+
 // UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf
 
 void panic(const char* s) {
@@ -17,15 +19,18 @@ void panic(const char* s) {
     exit(1);
 }
 
+// TODO check max app name length
+#define MSG_APP_LEN 64
 
 struct Message {
     int priority;
-    char application[64];
+    char application[MSG_APP_LEN];
 };
 
+#define DF_MONTH_LEN 9
 
 struct Datefields {
-    char month[9];
+    char month[DF_MONTH_LEN]; // TODO numeric indicator?
     int day;
     int hour;
     int minute;
@@ -76,13 +81,26 @@ int parse_datefield(char* message, struct Datefields* date, int* position) {
     // char month[8];
     // memset(&month, '\0', sizeof(month));  // makes valgrind happy as the above char contains uninitialized memory
     int date_length;
-    if(sscanf(message + *position, "%s %d %d:%d:%d%n",
+    if(sscanf(message + *position, "%"STR(DF_MONTH_LEN)"s %d %d:%d:%d%n",
               date->month, &(date->day), &(date->hour), &(date->minute), &(date->second), &date_length) != 5) {
         return 1;  // Failed to parse all desired fields
     }
     *position += date_length;
     return 0;
 }
+
+
+int parse_application(char* message, char* application, int* position) {
+    int app_length;
+    if(sscanf(message + *position, "%"STR(MSG_APP_LEN)"s%n", application, &app_length) != 1) {  // %n not counted in returned field count
+        return 1;  // Failed to parse all desired fields
+    }
+    if(strlen(application) < 2) return 1;  // Expect at least chars
+    application[app_length-1] = '\0';  // Remove the trailing :
+    *position += app_length;
+    return 0;
+}
+
 
 int parse_message(struct Message* result, char* message) {
     /*
@@ -92,20 +110,29 @@ int parse_message(struct Message* result, char* message) {
             <priority>VERSION ISOTIMESTAMP HOSTNAME APPLICATION PID MESSAGEID STRUCTURED-DATA MSG
         Assumes null termed string
     */
-    printf("Got message: %s\n", message);
     int priority = 0;
     int position = 0;
     if(parse_priority(message, &priority, &position) != 0) return 1;
     result->priority = priority;
     position++; // Now sits on the first character of the ISOTIMESTAMP
 
-
-    // Parse date
+    // Parse ISOTIMESTAMP
+    // Note: does not parse a full iso timestamp, only the format above
     struct Datefields date;
     if(parse_datefield(message, &date, &position) != 0) {
         return 1;
     }
     position++;  // position now at beginning of HOSTNAME field
+
+    // Parse APPLICATION
+    // filterlog: 5,,,1000000103,cpsw0,match....
+    char application[MSG_APP_LEN];
+    if(parse_application(message, application, &position) != 0) return 1;
+    memcpy(result->application, application, sizeof(application));
+    position += 1; // pass over the space
+
+    printf("remaining: '%s'\n", message + position);
+    return 0;
 
     // char msg_remaining[4096];
     // memset(&msg_remaining, '\0', sizeof(msg_remaining));
@@ -115,21 +142,8 @@ int parse_message(struct Message* result, char* message) {
     // memmove(message, &message[position], strlen(message) - position);
     // printf("'%s'\n", message);
 
-    // Parse APPLICATION
-    // filterlog: 5,,,1000000103,cpsw0,match....
-    char application[64];  // TODO check max length
-    int app_length;
-    if(sscanf(message + position, "%s%n", application, &app_length) != 1) {  // %n not counted in returned field count
-        return 1;  // Failed to parse all desired fields
-    }
-    application[app_length-1] = '\0';  // Remove the trailing :
-    memcpy(result->application, application, sizeof(application));
-
-    position += app_length + 1;
-
-    printf("remaining: '%s'\n", message + position);
-    return 0;
 }
+
 
 
 int main(int argc, char** argv) {
@@ -138,7 +152,6 @@ int main(int argc, char** argv) {
     char* endptr;
     unsigned int portl;
     unsigned short port;
-    int size_recvd;
     char msg[4096];
     socklen_t addrlen;
 
@@ -161,7 +174,7 @@ int main(int argc, char** argv) {
     if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         panic("socket");
     int one = 1;
-    setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(1));
+    setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
     memset(&my_addr, 0, sizeof(my_addr));
     my_addr.sin_family = AF_INET;
@@ -173,7 +186,7 @@ int main(int argc, char** argv) {
 
     while (1) {
         addrlen = sizeof(struct sockaddr_in);
-
+        int size_recvd;
         if ((size_recvd = recvfrom(sock_fd, /* socket */
                                      msg, /* buffer */
                                      sizeof(msg), /* size of buffer */
@@ -185,6 +198,7 @@ int main(int argc, char** argv) {
         assert(size_recvd < sizeof(msg));  // messages can't be longer than our buffer
 
         assert(addrlen == sizeof(struct sockaddr_in));
+        printf("Got message: %s\n", msg);
 
         // TODO should we check that msg[size_recvd] == \0 ?
         // printf("From host %s src port %d got message %.*s\n",
