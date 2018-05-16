@@ -10,6 +10,8 @@
 #include <netdb.h>
 #include <limits.h>
 #include "helpers.h"
+#include "pfparser.h"
+
 
 // UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf
 
@@ -31,6 +33,7 @@ struct Message {
     int priority;
     char application[MSG_APP_LEN];
     struct Datefields date;
+    pf_message data;
 };
 
 
@@ -134,8 +137,18 @@ int parse_message(struct Message* result, char* message) {
     memcpy(result->application, application, sizeof(application));
     position += 1; // pass over the space
 
-    printf("remaining: '%s'\n", message + position);
-    return 0;
+    // printf("remaining: '%s'\n", message + position);
+
+    // trim original message to only the CSV portion
+    int msglen = strlen(message);
+    int datalen = msglen - position;
+    memmove(message, &message[position], datalen);
+    // zero the rest of the message
+    memset(&message[datalen], 0, msglen - datalen);
+
+    // pf_message result_msg;
+    if(pfparse_message(message, &(result->data)) != 0) return 1;
+
 
     // char msg_remaining[4096];
     // memset(&msg_remaining, '\0', sizeof(msg_remaining));
@@ -145,6 +158,7 @@ int parse_message(struct Message* result, char* message) {
     // memmove(message, &message[position], strlen(message) - position);
     // printf("'%s'\n", message);
 
+    return 0;
 }
 
 
@@ -178,7 +192,7 @@ int main(int argc, char** argv) {
     memset(&my_addr, 0, sizeof(my_addr));
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = INADDR_ANY;
-    my_addr.sin_port = htons(port);
+    my_addr.sin_port = htons(port); // host to network short - converts a *s*hort from the *h*ost's to *n*etwork's endianness
     if (bind(sock_fd, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in)) < 0)
         panic("bind failed");
 
@@ -186,17 +200,17 @@ int main(int argc, char** argv) {
     while (1) {
         int size_recvd;
         if ((size_recvd = recvfrom(sock_fd, /* socket */
-                                     msg, /* buffer */
-                                     sizeof(msg), /* size of buffer */
-                                     0, /* flags = 0 */
-                                     (struct sockaddr*)&my_peer_addr, /* who’s sending */
-                                     &addrlen /* length of buffer to receive peer info */
-                                    )) < 0)
+                                   msg, /* buffer */
+                                   sizeof(msg), /* size of buffer */
+                                   0, /* flags = 0 */
+                                   (struct sockaddr*)&my_peer_addr, /* who’s sending */
+                                   &addrlen /* length of buffer to receive peer info */
+                                   )) < 0)
             panic("recvfrom");
         assert(size_recvd < sizeof(msg));  // messages can't be longer than our buffer
 
         assert(addrlen == sizeof(struct sockaddr_in));
-        printf("Got message: %s\n", msg);
+        printf("\nGot message: %s\n", msg);
 
         // TODO should we check that msg[size_recvd] == \0 ?
         // printf("From host %s src port %d got message %.*s\n",
@@ -206,9 +220,10 @@ int main(int argc, char** argv) {
         //printf("msg[size_recvd] is: %d", msg[size_recvd]);
         msg[size_recvd] = '\0'; // We receive 1 full string at a time
         if(parse_message(&result, msg) != 1) {
-            printf("message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n",
+            printf("message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n"
+                   "\tInterface: %s\n\tIP version: %d\n",
                 result.priority, result.application, result.date.month, result.date.day, result.date.hour,
-                result.date.minute, result.date.second);
+                result.date.minute, result.date.second, result.data.iface, result.data.ipversion);
         }
     }
 
