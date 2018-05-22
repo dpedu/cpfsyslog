@@ -13,21 +13,22 @@
 #include "pfparser.h"
 
 
-// UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf
+/*UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf*/
 
 
 #define DF_MONTH_LEN 9
 
+/*TODO numeric indicator for month?*/
 struct Datefields {
-    char month[DF_MONTH_LEN];  // TODO numeric indicator?
+    char month[DF_MONTH_LEN];
     int day;
     int hour;
     int minute;
     int second;
 };
 
-
-#define MSG_APP_LEN 64  // TODO check max app name length
+/*TODO check max app name length*/
+#define MSG_APP_LEN 64
 
 struct Message {
     int priority;
@@ -50,17 +51,17 @@ int parse_priority(char* message, int* priority, int* position) {
         The position after the final `>` will be placed in the passed `position` int pointer
         Returns 0 on success or something else on failure
     */
-    // Must have >3 chars to form <x> priority
+    /*Must have >3 chars to form <x> priority*/
     if (strlen(message) < 3) return 1;
-    // Must start with <
+    /*Must start with <*/
     if (message[0] != '<') return 1;
     char digits[4];
     memset(&digits, '\0', sizeof(digits));
     int num_digits = 0;
     int pos = 1;
-    //bool found_priority_end = false; // TODO
+    /*bool found_priority_end = false; // TODO*/
     while (pos < 4) {
-        if(!isdigit(message[pos])) return 1; // priority must be numeric
+        if(!isdigit(message[pos])) return 1; /*priority must be numeric*/
         digits[num_digits] = message[pos];
         num_digits++;
         pos++;
@@ -68,8 +69,8 @@ int parse_priority(char* message, int* priority, int* position) {
             break;
         }
     }
-    // TODO if escape the loop because pos >= 4, we never found '>'
-    if (num_digits == 0) return 1; // empty priority <> ?
+    /*TODO if escape the loop because pos >= 4, we never found '>'*/
+    if (num_digits == 0) return 1; /*empty priority <> ?*/
     *priority = atoi(digits);
     *position = pos;
     return 0;
@@ -83,12 +84,12 @@ int parse_datefield(char* message, struct Datefields* date, int* position) {
         Parse out the date and place the fields in the passed datefields struct pointer
         Position will be advanced to the character after the parsed data
     */
-    // char month[8];
-    // memset(&month, '\0', sizeof(month));  // makes valgrind happy as the above char contains uninitialized memory
+    /*char month[8];
+    memset(&month, '\0', sizeof(month));  makes valgrind happy as the above char contains uninitialized memory*/
     int date_length;
     if(sscanf(message + *position, "%"STR(DF_MONTH_LEN)"s %d %d:%d:%d%n",
               date->month, &(date->day), &(date->hour), &(date->minute), &(date->second), &date_length) != 5) {
-        return 1;  // Failed to parse all desired fields
+        return 1;  /*Failed to parse all desired fields*/
     }
     *position += date_length;
     return 0;
@@ -97,11 +98,11 @@ int parse_datefield(char* message, struct Datefields* date, int* position) {
 
 int parse_application(char* message, char* application, int* position) {
     int app_length;
-    if(sscanf(message + *position, "%"STR(MSG_APP_LEN)"s%n", application, &app_length) != 1) {  // %n not counted in returned field count
-        return 1;  // Failed to parse all desired fields
+    if(sscanf(message + *position, "%"STR(MSG_APP_LEN)"s%n", application, &app_length) != 1) {  /*%n not counted in returned field count*/
+        return 1;  /*Failed to parse all desired fields*/
     }
-    if(strlen(application) < 2) return 1;  // Expect at least chars
-    application[app_length-1] = '\0';  // Remove the trailing :
+    if(strlen(application) < 2) return 1;  /*Expect at least chars*/
+    application[app_length-1] = '\0';  /*Remove the trailing :*/
     *position += app_length;
     return 0;
 }
@@ -119,44 +120,44 @@ int parse_message(struct Message* result, char* message) {
     int position = 0;
     if(parse_priority(message, &priority, &position) != 0) return 1;
     result->priority = priority;
-    position++; // Now sits on the first character of the ISOTIMESTAMP
+    position++; /*Now sits on the first character of the ISOTIMESTAMP*/
 
-    // Parse ISOTIMESTAMP
-    // Note: does not parse a full iso timestamp, only the format above
+    /*Parse ISOTIMESTAMP
+    Note: does not parse a full iso timestamp, only the format above*/
     struct Datefields date;
     if(parse_datefield(message, &date, &position) != 0) {
         return 1;
     }
     result->date = date;
-    position++;  // position now at beginning of HOSTNAME field
+    position++;  /*position now at beginning of HOSTNAME field*/
 
-    // Parse APPLICATION
-    // filterlog: 5,,,1000000103,cpsw0,match....
+    /*Parse APPLICATION
+    filterlog: 5,,,1000000103,cpsw0,match....*/
     char application[MSG_APP_LEN];
     if(parse_application(message, application, &position) != 0) return 1;
     memcpy(result->application, application, sizeof(application));
-    position += 1; // pass over the space
+    position += 1; /*pass over the space*/
 
-    // printf("remaining: '%s'\n", message + position);
+    /*printf("remaining: '%s'\n", message + position);*/
 
-    // trim original message to only the CSV portion
+    /*trim original message to only the CSV portion*/
     int msglen = strlen(message);
     int datalen = msglen - position;
     memmove(message, &message[position], datalen);
-    // zero the rest of the message
+    /*zero the rest of the message*/
     memset(&message[datalen], 0, msglen - datalen);
 
-    // pf_message result_msg;
+    /*pf_message result_msg;*/
     if(pfparse_message(message, &(result->data)) != 0) return 1;
 
 
-    // char msg_remaining[4096];
-    // memset(&msg_remaining, '\0', sizeof(msg_remaining));
-    // memcpy(msg_remaining, &message[position], strlen(message) - position);
-    // printf("'%s'\n", msg_remaining);
-    // or
-    // memmove(message, &message[position], strlen(message) - position);
-    // printf("'%s'\n", message);
+    /*char msg_remaining[4096];
+    memset(&msg_remaining, '\0', sizeof(msg_remaining));
+    memcpy(msg_remaining, &message[position], strlen(message) - position);
+    printf("'%s'\n", msg_remaining);
+    or
+    memmove(message, &message[position], strlen(message) - position);
+    printf("'%s'\n", message);*/
 
     return 0;
 }
@@ -169,7 +170,7 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    // Parse port number to integer
+    /*Parse port number to integer*/
     char* portend;
     unsigned int portl;
     portl = strtol(argv[1], &portend, 10);
@@ -177,22 +178,22 @@ int main(int argc, char** argv) {
     assert(portl < USHRT_MAX);
     unsigned short port = (unsigned short)portl;
 
-    // Create socket
+    /*Create socket*/
     int sock_fd;
     char msg[4096];
     if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         panic("socket");
 
-    // Set socket options
+    /*Set socket options*/
     int one = 1;
     setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
-    // Bind socket
+    /*Bind socket*/
     struct sockaddr_in my_addr, my_peer_addr;
     memset(&my_addr, 0, sizeof(my_addr));
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = INADDR_ANY;
-    my_addr.sin_port = htons(port); // host to network short - converts a *s*hort from the *h*ost's to *n*etwork's endianness
+    my_addr.sin_port = htons(port); /*host to network short - converts a *s*hort from the *h*ost's to *n*etwork's endianness*/
     if (bind(sock_fd, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in)) < 0)
         panic("bind failed");
 
@@ -207,18 +208,18 @@ int main(int argc, char** argv) {
                                    &addrlen /* length of buffer to receive peer info */
                                    )) < 0)
             panic("recvfrom");
-        assert(size_recvd < sizeof(msg));  // messages can't be longer than our buffer
+        assert(size_recvd < sizeof(msg));  /*messages can't be longer than our buffer*/
 
         assert(addrlen == sizeof(struct sockaddr_in));
         printf("\nGot message: %s\n", msg);
 
-        // TODO should we check that msg[size_recvd] == \0 ?
-        // printf("From host %s src port %d got message %.*s\n",
-        //        inet_ntoa(my_peer_addr.sin_addr), ntohs(my_peer_addr.sin_port), size_recvd, msg);
+        /*TODO should we check that msg[size_recvd] == \0 ?
+        printf("From host %s src port %d got message %.*s\n",
+               inet_ntoa(my_peer_addr.sin_addr), ntohs(my_peer_addr.sin_port), size_recvd, msg);*/
         struct Message result;
-        // printf("XXXsize: %lu", sizeof(result)); // curious how big the struct gets
-        //printf("msg[size_recvd] is: %d", msg[size_recvd]);
-        msg[size_recvd] = '\0'; // We receive 1 full string at a time
+        /*printf("XXXsize: %lu", sizeof(result)); // curious how big the struct gets
+        printf("msg[size_recvd] is: %d", msg[size_recvd]);*/
+        msg[size_recvd] = '\0'; /*We receive 1 full string at a time*/
         if(parse_message(&result, msg) != 1) {
             printf("message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n"
                    "\tInterface: %s\n\tIP version: %d\n",
