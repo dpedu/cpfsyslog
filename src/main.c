@@ -6,12 +6,13 @@
 #include <ctype.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <limits.h>
 #include "helpers.h"
 #include "pfparser.h"
-
+#include <signal.h>
 
 /*UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf*/
 
@@ -163,12 +164,26 @@ int parse_message(struct Message* result, char* message) {
 }
 
 
+int running = 1;
+int sock_fd;
+
+
+void handler(int signum) {
+    printf("Exiting on signal %s\n", strsignal(signum));
+    running = 0;  /* shut down the loop */
+    shutdown(sock_fd, SHUT_RDWR);  /* break the listener socket */
+    close(sock_fd);
+}
+
 
 int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "usage: %s <port>\n", argv[0]);
         exit(1);
     }
+
+    signal(SIGTERM, handler);
+    signal(SIGINT, handler);
 
     /*Parse port number to integer*/
     char* portend;
@@ -179,7 +194,6 @@ int main(int argc, char** argv) {
     unsigned short port = (unsigned short)portl;
 
     /*Create socket*/
-    int sock_fd;
     char msg[4096];
     if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         panic("socket");
@@ -198,7 +212,7 @@ int main(int argc, char** argv) {
         panic("bind failed");
 
     socklen_t addrlen = sizeof(struct sockaddr_in);
-    while (1) {
+    while (running) {
         int size_recvd;
         if ((size_recvd = recvfrom(sock_fd, /* socket */
                                    msg, /* buffer */
@@ -206,8 +220,10 @@ int main(int argc, char** argv) {
                                    0, /* flags = 0 */
                                    (struct sockaddr*)&my_peer_addr, /* who’s sending */
                                    &addrlen /* length of buffer to receive peer info */
-                                   )) < 0)
-            panic("recvfrom");
+                                   )) < 0) {
+            if (running) panic("recvfrom");
+            else break;
+        }
         assert(size_recvd < sizeof(msg));  /*messages can't be longer than our buffer*/
 
         assert(addrlen == sizeof(struct sockaddr_in));
@@ -217,8 +233,9 @@ int main(int argc, char** argv) {
         printf("From host %s src port %d got message %.*s\n",
                inet_ntoa(my_peer_addr.sin_addr), ntohs(my_peer_addr.sin_port), size_recvd, msg);*/
         struct Message result;
-        /*printf("XXXsize: %lu", sizeof(result)); // curious how big the struct gets
-        printf("msg[size_recvd] is: %d", msg[size_recvd]);*/
+        memset(&result, 0, sizeof(result)); /* Doing this or setting result above to `= {};` seems to make valgrind happy */
+        /*printf("\nsize: %lu\n\n", sizeof(result)); // curious how big the struct gets
+        // printf("msg[size_recvd] is: %d", msg[size_recvd]);*/
         msg[size_recvd] = '\0'; /*We receive 1 full string at a time*/
         if(parse_message(&result, msg) != 1) {
             printf("message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n"
