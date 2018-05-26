@@ -2,7 +2,7 @@ CC=gcc -Wall
 CFLAGS=-g -I.
 CFLAGS_STATIC=$(CCLAGS) --static
 DEPS=
-OBJ=main.o pfparser.o
+OBJ=main.o pfparser.o sysparser.o
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

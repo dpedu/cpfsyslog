@@ -17,15 +17,15 @@ typedef enum pf_direction {
     pf_dir_out
 } pf_direction;
 
-typedef struct pf_message {
+typedef struct pf_data {
     int rulenum;
     char iface[IFACE_LEN];
     pf_hit_reason reason;
     pf_hit_action action;
     pf_direction direction;
     int ipversion;
-} pf_message;
+} pf_data;
 
 
 
-int pfparse_message(char* message, pf_message* result);
+int pfparse_message(char* message, pf_data* result);

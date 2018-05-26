@@ -5,7 +5,7 @@
 
 
 
-int pfparse_message(char* message, pf_message* result) {
+int pfparse_message(char* message, pf_data* result) {
     printf("pfparse: '%s'\n", message);
 
     char* token;
