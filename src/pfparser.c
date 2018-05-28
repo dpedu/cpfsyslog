@@ -5,7 +5,7 @@
 
 
 
-int pfparse_message(char* message, pf_data* result) {
+int pfdata_parse(char* message, pf_data* result) {
     printf("pfparse: '%s'\n", message);
 
     char* token;
@@ -58,14 +58,36 @@ int pfparse_message(char* message, pf_data* result) {
 
     if(result->ipversion == 4) {
         /*parse ipv4 fields*/
+        /*
+        - TOS, hex as a string field starting with "0x" or empty
+        - "Explicit Congestion Notification" - or empty, we will ignore
+        - TTL, int
+        - packet ID, int (seemingly useless?)
+        - fragment offset, int (???)
+        - flags ("none" or some string, each flag is an uppercase(?) character)
+        - protocol id, int
+        - protocol name, string
+       */
     }
     else if(result->ipversion == 6) {
         /*parse ipv6 fields*/
+        /*
+        - class, hex as a string field starting with "0x"
+        - flow label, "data" ???
+        - hop-limit, int (like ttl)
+        - protocol name, string
+        - protocol id, int
+        */
     } else {
-        return 1;
+        return 1; /*unknown ip version*/
     }
 
     /*Parse <ip-data>*/
+    /*
+    - packet length, int
+    - source addr, string (ipv4 OR ipv6!)
+    - dest addr, string (ipv4 OR ipv6!)
+    */
 
     /*Parse optional <protocol-specific-data>*/
 

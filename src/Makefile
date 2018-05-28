@@ -1,5 +1,5 @@
-CC=gcc -Wall
-CFLAGS=-g -I.
+CC=gcc
+override CFLAGS := -g -I. -Wall -Wpedantic $(CFLAGS)
 CFLAGS_STATIC=$(CCLAGS) --static
 DEPS=
 OBJ=main.o pfparser.o sysparser.o

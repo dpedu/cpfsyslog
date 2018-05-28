@@ -12,14 +12,12 @@ struct Datefields {
 };
 
 /*TODO check max app name length*/
-#define MSG_APP_LEN 64
+#define MSG_APP_LEN 16
 
 struct SysMessage {
     int priority;
     char application[MSG_APP_LEN];
     struct Datefields date;
-    // char message;
-    // pf_message data;
 };
 
 

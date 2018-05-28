@@ -1,21 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <ctype.h>
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <limits.h>
-#include "helpers.h"
-// #include "pfparser.h"
-#include "sysparser.h"
 #include <signal.h>
-
-/*UDP server-related mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf*/
+#include "helpers.h"
+#include "sysparser.h"
 
 
 void panic(const char* s) {
@@ -24,6 +17,7 @@ void panic(const char* s) {
 }
 
 
+/*defined here are they are used in conjunction with the shutdown signal handler*/
 int running = 1;
 int sock_fd;
 
@@ -36,6 +30,7 @@ void sig_handler(int signum) {
 }
 
 
+/*UDP server bits mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf*/
 int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "usage: %s <port>\n", argv[0]);
@@ -54,7 +49,6 @@ int main(int argc, char** argv) {
     unsigned short port = (unsigned short)portl;
 
     /*Create socket*/
-    char msg[4096];
     if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         panic("socket");
 
@@ -67,24 +61,27 @@ int main(int argc, char** argv) {
     memset(&my_addr, 0, sizeof(my_addr));
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = INADDR_ANY;
-    my_addr.sin_port = htons(port); /*host to network short - converts a *s*hort from the *h*ost's to *n*etwork's endianness*/
+    my_addr.sin_port = htons(port); /*host to network endianess for a short - converts a *s*hort from the *h*ost's to *n*etwork's endianness*/
     if (bind(sock_fd, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in)) < 0)
         panic("bind failed");
 
     socklen_t addrlen = sizeof(struct sockaddr_in);
+    char msg[4096];
     while (running) {
         int size_recvd;
         if ((size_recvd = recvfrom(sock_fd, /* socket */
-                                   msg, /* buffer */
-                                   sizeof(msg), /* size of buffer */
-                                   0, /* flags = 0 */
+                                   msg,                             /* buffer */
+                                   sizeof(msg),                     /* size of buffer */
+                                   0,                               /* flags = 0 */
                                    (struct sockaddr*)&my_peer_addr, /* who’s sending */
-                                   &addrlen /* length of buffer to receive peer info */
+                                   &addrlen                         /* length of buffer to receive peer info */
                                    )) < 0) {
             if (running) panic("recvfrom");
-            else break;
+            else break; /*sock was closed by exit signal*/
         }
-        assert(size_recvd < sizeof(msg));  /*messages can't be longer than our buffer*/
+        assert(size_recvd < sizeof(msg));  /*messages can't be longer than our buffer. TODO if they are longer we should
+        dump it and wait until the next loop. if the next buffer is some portion of a too-long message, we can expect
+        the various parsing below to fail.*/
 
         assert(addrlen == sizeof(struct sockaddr_in));
         printf("\nGot message: %s\n", msg);
@@ -98,23 +95,29 @@ int main(int argc, char** argv) {
         // printf("msg[size_recvd] is: %d", msg[size_recvd]);*/
         msg[size_recvd] = '\0'; /*We receive 1 full string at a time*/
 
+        /*parse syslog message into fields*/
         if(sysmsg_parse(&result, msg) != 0) {
             printf("Failed to parse message: %s", msg);
         } else {
-            printf("syslogmessage is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n\t\n",
-                   result.priority, result.application, result.date.month, result.date.day, result.date.hour,
-                   result.date.minute, result.date.second);
+            printf("syslog message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n\t\n",
+                   result.priority,
+                   result.application,
+                   result.date.month,
+                   result.date.day,
+                   result.date.hour,
+                   result.date.minute,
+                   result.date.second);
 
-            pf_data fwdata;
-            memset(&fwdata, 0, sizeof(fwdata));
-
-            if(pfparse_message(msg, &fwdata) != 0) {
+            /*parse MSG field into pfsense data*/
+            pf_data fwdata = {0};
+            //memset(&fwdata, 0, sizeof(fwdata));
+            if(pfdata_parse(msg, &fwdata) != 0) {
                 printf("Failed to parse pfsense data: %s", msg);
             } else {
                 printf("IP Data:\n\tInterface: %s\n\tIP version: %d\n",
-                       fwdata.iface, fwdata.ipversion);
+                       fwdata.iface,
+                       fwdata.ipversion);
             }
-
         }
     }
 
