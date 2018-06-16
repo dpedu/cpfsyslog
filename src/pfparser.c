@@ -28,7 +28,7 @@ int pfdata_parse(char* message, pf_data* result) {
             break;
 
             case 4: /*iface*/
-                if(strlen(token) > IFACE_LEN) return 1;
+                if(strlen(token) > IFACE_LEN) return 1;  /*oddly log interface name, avoid buf overflow*/
                 memcpy(result->iface, token, strlen(token));
             break;
 

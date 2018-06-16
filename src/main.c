@@ -17,14 +17,14 @@ void panic(const char* s) {
 }
 
 
-/*defined here are they are used in conjunction with the shutdown signal handler*/
+/*defined here as they are used in conjunction with the shutdown signal handler*/
 int running = 1;
 int sock_fd;
 
 
 void sig_handler(int signum) {
     printf("\nExiting on signal %s\n", strsignal(signum));
-    running = 0;  /* shut down the loop */
+    running = 0;  /* shut down the main loop */
     shutdown(sock_fd, SHUT_RDWR);  /* break the listener socket */
     close(sock_fd);
 }
@@ -69,10 +69,10 @@ int main(int argc, char** argv) {
     char msg[4096];
     while (running) {
         int size_recvd;
-        if ((size_recvd = recvfrom(sock_fd, /* socket */
+        if ((size_recvd = recvfrom(sock_fd,                         /* socket */
                                    msg,                             /* buffer */
-                                   sizeof(msg),                     /* size of buffer */
-                                   0,                               /* flags = 0 */
+                                   sizeof(msg),                     /* buffer length */
+                                   0,                               /* no flags */
                                    (struct sockaddr*)&my_peer_addr, /* who’s sending */
                                    &addrlen                         /* length of buffer to receive peer info */
                                    )) < 0) {
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
         printf("From host %s src port %d got message %.*s\n",
                inet_ntoa(my_peer_addr.sin_addr), ntohs(my_peer_addr.sin_port), size_recvd, msg);*/
         struct SysMessage result;
-        memset(&result, 0, sizeof(result)); /* Doing this or setting result above to `= {};` seems to make valgrind happy */
+        memset(&result, 0, sizeof(result)); /* Doing this or setting result above to `= {};` makes valgrind happy */
         /*printf("\nsize: %lu\n\n", sizeof(result)); // curious how big the struct gets
         // printf("msg[size_recvd] is: %d", msg[size_recvd]);*/
         msg[size_recvd] = '\0'; /*We receive 1 full string at a time*/
