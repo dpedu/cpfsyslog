@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
         if(sysmsg_parse(&result, msg) != 0) {
             printf("Failed to parse message: %s", msg);
         } else {
-            printf("syslog message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n\t\n",
+            printf("syslog message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n",
                    result.priority,
                    result.application,
                    result.date.month,
@@ -112,11 +112,9 @@ int main(int argc, char** argv) {
             pf_data fwdata = {0};
             //memset(&fwdata, 0, sizeof(fwdata));
             if(pfdata_parse(msg, &fwdata) != 0) {
-                printf("Failed to parse pfsense data: %s", msg);
+                printf("Failed to parse pfsense data: %s\n\n", msg);
             } else {
-                printf("IP Data:\n\tInterface: %s\n\tIP version: %d\n",
-                       fwdata.iface,
-                       fwdata.ipversion);
+                pfdata_print(&fwdata);
             }
         }
     }
