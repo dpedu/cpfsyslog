@@ -171,7 +171,6 @@ int pfdata_parse(char* message, pf_data* result) {
         field++;
     }
 
-    printf("### remaining: %s\n", message);
     /*Parse optional <protocol-specific-data>
       one of <tcp-data> | <udp-data> | <icmp-data> | <carp-data>
       ICMP and CARP are ignored*/

@@ -1,21 +1,24 @@
-CC=gcc
-override CFLAGS := -g -I. -Wall -Wpedantic $(CFLAGS)
-CFLAGS_STATIC=$(CCLAGS) --static
-DEPS=
+CC=cc
+CFLAGS := -g -I. -Wall -Wpedantic -I ../deps/build/usr/local/include/
+LDFLAGS = -L ../deps/build/usr/local/lib/
+LDLIBS = -ljson-c
+LDFLAGS += $(LDLIBS)
+CFLAGS_STATIC = $(CFLAGS) --static
 OBJ=main.o pfparser.o sysparser.o
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 csyslog: $(OBJ)
-	gcc -o $@ $^ $(CFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
+.PHONY: clean
 clean:
 	rm -vf *.o csyslog
 
 static: $(OBJ)
-	gcc -o csyslog $^ $(CFLAGS_STATIC)
+	$(CC) -o csyslog $^ $(LDFLAGS) --static
 
 .PHONY: docker
 docker: static
-	docker build -t csyslog .
+	sudo docker build -t csyslog .

@@ -10,6 +10,7 @@
 #include "helpers.h"
 #include "sysparser.h"
 
+#include <json-c/json.h>
 
 void panic(const char* s) {
     perror(s);
@@ -115,6 +116,13 @@ int main(int argc, char** argv) {
                 printf("Failed to parse pfsense data: %s\n\n", msg);
             } else {
                 pfdata_print(&fwdata);
+
+                json_object* jobj = json_object_new_object();
+                json_object *jstring = json_object_new_string("bar");
+                json_object_object_add(jobj,"foo", jstring);
+                printf("The json object created: %s\n",json_object_to_json_string(jobj));
+                json_object_put(jobj);
+
             }
         }
     }
