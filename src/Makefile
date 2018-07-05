@@ -1,7 +1,7 @@
 CC=cc
 CFLAGS := -g -I. -Wall -Wpedantic -I ../deps/build/usr/local/include/
 LDFLAGS = -L ../deps/build/usr/local/lib/
-LDLIBS = -ljson-c
+LDLIBS = -ljson-c -lcurl -lpthread
 LDFLAGS += $(LDLIBS)
 CFLAGS_STATIC = $(CFLAGS) --static
 OBJ=main.o pfparser.o sysparser.o

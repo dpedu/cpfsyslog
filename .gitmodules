@@ -1,3 +1,6 @@
 [submodule "deps/json-c"]
 	path = deps/json-c
 	url = https://github.com/json-c/json-c.git
+[submodule "deps/curl"]
+	path = deps/curl
+	url = https://github.com/curl/curl.git
