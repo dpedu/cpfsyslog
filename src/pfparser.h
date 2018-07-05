@@ -105,4 +105,8 @@ int pfdata_parse(char* message, pf_data* result);
 
 void pfdata_print(pf_data* data);
 
+void add_intfield(json_object* obj, char* name, int value);
+
+void add_strfield(json_object* obj, char* name, char* value);
+
 int pfdata_to_json(pf_data* data, json_object* obj);

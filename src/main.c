@@ -9,6 +9,7 @@
 #include <signal.h>
 #include "helpers.h"
 #include "sysparser.h"
+#include <time.h>
 
 #include <json-c/json.h>
 
@@ -66,6 +67,9 @@ int main(int argc, char** argv) {
     if (bind(sock_fd, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in)) < 0)
         panic("bind failed");
 
+    time_t cur_t = {0};
+    struct tm cur_time = {0};
+
     socklen_t addrlen = sizeof(struct sockaddr_in);
     char msg[4096];
     while (running) {
@@ -84,8 +88,8 @@ int main(int argc, char** argv) {
         dump it and wait until the next loop. if the next buffer is some portion of a too-long message, we can expect
         the various parsing below to fail.*/
 
-        assert(addrlen == sizeof(struct sockaddr_in));
-        // printf("\nGot message: %s\n", msg);
+            assert(addrlen == sizeof(struct sockaddr_in));
+        /*printf("\nGot message: %s\n", msg);*/
 
         /*TODO should we check that msg[size_recvd] == \0 ?
         printf("From host %s src port %d got message %.*s\n",
@@ -117,7 +121,21 @@ int main(int argc, char** argv) {
             } else {
                 // pfdata_print(&fwdata);
 
+                cur_t = time(NULL);
+                cur_time = *localtime(&cur_t);
+
+                char date_formtted[32];
+                sprintf(date_formtted, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+                    cur_time.tm_year + 1900,
+                    month2num(result.date.month),
+                    result.date.day,
+                    result.date.hour,
+                    result.date.minute,
+                    result.date.second);
+
                 json_object* jobj = json_object_new_object();
+                add_strfield(jobj, "date", date_formtted);
+                add_strfield(jobj, "app", result.application);
                 pfdata_to_json(&fwdata, jobj);
                 printf("%s\n",json_object_to_json_string(jobj));
                 json_object_put(jobj);

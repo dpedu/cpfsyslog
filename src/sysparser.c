@@ -128,3 +128,13 @@ int sysmsg_parse(struct SysMessage* result, char* message) {
 
     return 0;
 }
+
+
+int month2num(char* month) {
+    for(int i=1; i<=12; i++) {
+        if(strcmp(month, month2nummap[i]) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
