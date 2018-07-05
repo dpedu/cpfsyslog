@@ -4,7 +4,7 @@
 
 
 int pfdata_parse(char* message, pf_data* result) {
-    printf("pfparse: '%s'\n", message);
+    /*printf("pfparse: '%s'\n", message);*/
 
     char* token;
     int field = 0;
@@ -13,7 +13,7 @@ int pfdata_parse(char* message, pf_data* result) {
        They are: <rule-number>,<sub-rule-number>,<anchor>,<tracker>,<real-interface>,<reason>,<action>,<direction>,<ip-version>
        We only collect rule-number, real-interface, reason, action, direction, ip-version */
     while ( (token = strsep(&message, ",")) != NULL) {
-        printf("%02d: %s\n", field, token);
+        /*printf("%02d: %s\n", field, token);*/
         switch (field) {
             case 0: /* Rule number*/
                 {  /*language limitation, the `char*` label (or `unsigned`) is not supported after a switch case TODO look up the underlying reason again*/
@@ -61,7 +61,7 @@ int pfdata_parse(char* message, pf_data* result) {
         /*parse ipv4 fields*/
         field = 0;
         while ( (token = strsep(&message, ",")) != NULL) {
-            printf("%02d: %s\n", field, token);
+            /*printf("%02d: %s\n", field, token);*/
             switch (field) {
                 case 0: /*TOS, hex as a string field starting with "0x" or empty*/
                     {
@@ -108,7 +108,7 @@ int pfdata_parse(char* message, pf_data* result) {
         /*parse ipv6 fields*/
         field = 0;
         while ( (token = strsep(&message, ",")) != NULL) {
-            printf("%02d: %s\n", field, token);
+            /*printf("%02d: %s\n", field, token);*/
             switch (field) {
                 case 0: /*class, hex as a string field starting with "0x"*/
                 break;
@@ -146,7 +146,7 @@ int pfdata_parse(char* message, pf_data* result) {
     /*parse ipv6 fields*/
     field = 0;
     while ( (token = strsep(&message, ",")) != NULL) {
-        printf("%02d: %s\n", field, token);
+        /*printf("%02d: %s\n", field, token);*/
         switch (field) {
             case 0: /*packet length, int*/
                 {
@@ -181,7 +181,7 @@ int pfdata_parse(char* message, pf_data* result) {
         /*parse ipv6 fields*/
         field = 0;
         while ( (token = strsep(&message, ",")) != NULL) {
-            printf("%02d: %s\n", field, token);
+            /*printf("%02d: %s\n", field, token);*/
             switch (field) {
                 case 0: /*src port, int*/
                     {
@@ -218,7 +218,7 @@ int pfdata_parse(char* message, pf_data* result) {
         /*<source-port>,<destination-port>,<data-length>*/
         field = 0;
         while ( (token = strsep(&message, ",")) != NULL) {
-            printf("%02d: %s\n", field, token);
+            /*printf("%02d: %s\n", field, token);*/
             switch (field) {
                 case 0: /*src port, int*/
                     {
@@ -295,4 +295,62 @@ void pfdata_print(pf_data* data) {
                    data->udp_data.srcport, data->udp_data.destport, data->udp_data.length);
         }
     }
+}
+
+
+void add_intfield(json_object* obj, char* name, int value) {
+    json_object *ipversion = json_object_new_int(value);
+    json_object_object_add(obj, name, ipversion);
+}
+
+
+void add_strfield(json_object* obj, char* name, char* value) {
+    json_object *ipversion = json_object_new_string(value);
+    json_object_object_add(obj, name, ipversion);
+}
+
+
+int pfdata_to_json(pf_data* data, json_object* obj) {
+    /*
+    Populate the passed json_object obj with data from from pf_data data.
+    */
+    add_strfield(obj, "interface", data->iface);
+    add_intfield(obj, "ipversion", data->ipversion);
+
+    add_strfield(obj, "action", (char*)(pfhastr[data->action]));
+
+    if(data->ipversion == 4) {
+        add_intfield(obj, "ttl", data->ipv4_data.ttl);
+        add_intfield(obj, "protocol_id", data->ipv4_data.protocol);
+    } else if(data->ipversion == 6) {
+        add_intfield(obj, "ttl", data->ipv6_data.hoplimit);
+        add_intfield(obj, "protocol_id", data->ipv6_data.protocol);
+    }
+
+    add_strfield(obj, "src_addr", data->src_addr);
+    add_strfield(obj, "dest_addr", data->dest_addr);
+
+    if (data->ipversion == 4) {
+        if (data->ipv4_data.protocol == 6) {
+            add_intfield(obj, "src_port", data->tcp_data.srcport);
+            add_intfield(obj, "dest_port", data->tcp_data.destport);
+            add_intfield(obj, "length", data->tcp_data.length);
+        } else if (data->ipv4_data.protocol == 11) {
+            add_intfield(obj, "src_port", data->udp_data.srcport);
+            add_intfield(obj, "dest_port", data->udp_data.destport);
+            add_intfield(obj, "length", data->udp_data.length);
+        }
+    } else if (data->ipversion == 6) {
+        if (data->ipv6_data.protocol == 6) {
+            add_intfield(obj, "src_port", data->tcp_data.srcport);
+            add_intfield(obj, "dest_port", data->tcp_data.destport);
+            add_intfield(obj, "length", data->tcp_data.length);
+        } else if (data->ipv6_data.protocol == 11) {
+            add_intfield(obj, "src_port", data->udp_data.srcport);
+            add_intfield(obj, "dest_port", data->udp_data.destport);
+            add_intfield(obj, "length", data->udp_data.length);
+        }
+    }
+
+    return 0;
 }

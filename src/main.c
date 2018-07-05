@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
         the various parsing below to fail.*/
 
         assert(addrlen == sizeof(struct sockaddr_in));
-        printf("\nGot message: %s\n", msg);
+        // printf("\nGot message: %s\n", msg);
 
         /*TODO should we check that msg[size_recvd] == \0 ?
         printf("From host %s src port %d got message %.*s\n",
@@ -100,14 +100,14 @@ int main(int argc, char** argv) {
         if(sysmsg_parse(&result, msg) != 0) {
             printf("Failed to parse message: %s", msg);
         } else {
-            printf("syslog message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n",
+            /*printf("syslog message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n",
                    result.priority,
                    result.application,
                    result.date.month,
                    result.date.day,
                    result.date.hour,
                    result.date.minute,
-                   result.date.second);
+                   result.date.second);*/
 
             /*parse MSG field into pfsense data*/
             pf_data fwdata = {0};
@@ -115,12 +115,11 @@ int main(int argc, char** argv) {
             if(pfdata_parse(msg, &fwdata) != 0) {
                 printf("Failed to parse pfsense data: %s\n\n", msg);
             } else {
-                pfdata_print(&fwdata);
+                // pfdata_print(&fwdata);
 
                 json_object* jobj = json_object_new_object();
-                json_object *jstring = json_object_new_string("bar");
-                json_object_object_add(jobj,"foo", jstring);
-                printf("The json object created: %s\n",json_object_to_json_string(jobj));
+                pfdata_to_json(&fwdata, jobj);
+                printf("%s\n",json_object_to_json_string(jobj));
                 json_object_put(jobj);
 
             }

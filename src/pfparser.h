@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <json-c/json.h>
+
 
 #define IFACE_LEN 8
 
@@ -102,3 +104,5 @@ typedef struct pf_data {
 int pfdata_parse(char* message, pf_data* result);
 
 void pfdata_print(pf_data* data);
+
+int pfdata_to_json(pf_data* data, json_object* obj);
