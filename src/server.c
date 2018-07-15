@@ -47,12 +47,12 @@ int submit_events(char* message) {
         printf("Failed to post messages!\n");
         return 1;
     }
-    free(message);
 }
 
 
-char* collect_buffer() {
+char* collect_buffer(int max_size, int* howmany) {
     char header[72];
+    // sprintf(header, "{\"index\": {\"_index\": \"firewall-test\", \"_type\": \"event\"}}\n");
     sprintf(header, "{\"index\": {\"_index\": \"firewall-%04d.%02d.%02d\", \"_type\": \"event\"}}\n",
             cur_time.tm_year + 1900,
             cur_time.tm_mon + 1,
@@ -61,14 +61,20 @@ char* collect_buffer() {
     // Calculate how large the payload will be
     int header_size = strlen(header);
     int num_messages = buff_count();
-    if(num_messages == 0) return NULL;
+    if(num_messages == 0)
+        return NULL;
     char* messages[num_messages];
     int message_size = 0;
     for(int i=0; i<num_messages; i++) {
         messages[i] = buff_pop();
-        message_size += strlen(messages[i]) + header_size + 1; // 1 newline
+        int item_size = strlen(messages[i]);
+        if(item_size + message_size > max_size) {
+            buff_push(messages[i]);
+            num_messages = i;
+            break;
+        }
+        message_size += item_size + header_size + 1; // 1 newline
     }
-
     // Allocate and build the message
     char* message = calloc(1, message_size + 1);
     for(int i=0; i<num_messages; i++) {
@@ -77,6 +83,7 @@ char* collect_buffer() {
         strcat(message, "\n");
         free(messages[i]);
     }
+    memcpy(howmany, &num_messages, sizeof(num_messages));
     return message;
 }
 
@@ -87,18 +94,31 @@ void* buffer_watch() {
     char* buffer = NULL;
     while(running) {
         usleep(100 * 1000);
-        time_t now = time(NULL);;
-        int messages = buff_count();
+        time_t now = time(NULL);
+
         pthread_mutex_lock(&buflock);
-        if(messages > 0 && (messages >= 10 || now - last_flush > 5)) {
-            buffer = collect_buffer();
-            pthread_mutex_unlock(&buflock);
-            submit_events(buffer);
-            printf("\nPushed %d messages\n", messages);
-            last_flush = now;
-        } else {
-            pthread_mutex_unlock(&buflock);
+        int total_messages = buff_count();
+
+        if(total_messages > 0 && (total_messages >= 10 || now - last_flush > 5)) {
+            int messages = 0;
+            do {
+                int howmany = 0;
+                buffer = collect_buffer(16*1024, &howmany);
+                pthread_mutex_unlock(&buflock);
+
+                submit_events(buffer);
+                printf("\nPushed %d messages\n", howmany);
+                free(buffer);
+                last_flush = now;
+
+                /*more events can be received as we unlock the buffer while flushing.
+                  stop flushing once we've flushed the whole buffer once.*/
+                total_messages -= howmany;
+
+                pthread_mutex_lock(&buflock);
+            } while(total_messages > 0 && (messages = buff_count()) > 0);
         }
+        pthread_mutex_unlock(&buflock);
     }
     return NULL;
 }
