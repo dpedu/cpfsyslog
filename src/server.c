@@ -93,10 +93,14 @@ int handle_message(char* msg) {
 
 
 void clear_buffer() {
-    char* header = "{\"index\": {\"_index\": \"firewall-test\", \"_type\": \"event\"}}\n";
-    int header_size = strlen(header);
+    char header[72];
+    sprintf(header, "{\"index\": {\"_index\": \"firewall-%04d.%02d.%02d\", \"_type\": \"event\"}}\n",
+            cur_time.tm_year + 1900,
+            cur_time.tm_mon + 1,
+            cur_time.tm_mday);
 
     // Calculate how large the payload will be
+    int header_size = strlen(header);
     int num_messages = buff_count();
     char* messages[num_messages];
     int message_size = 0;
@@ -115,7 +119,7 @@ void clear_buffer() {
     }
 
     // Send it
-    if(put_events(message) == 0) {
+    if(put_events(message, "http://192.168.1.120:8298") == 0) {
         printf("Pushed %d messages\n", num_messages);
     } else {
         printf("Failed to post messages!\n");
@@ -173,13 +177,12 @@ int run_server(int port) {
 
         printf(".");
         fflush(stdout);
-        if(buff_count() > BUFF_MAX) {
+        if(buff_count() >= BUFF_MAX) {
             printf("\n");
             clear_buffer();
         }
     }
 
-    printf("Clearing buffer, freeing %d entries\n", buff_count());
     buff_freeall();
     geo_close();
     return 1;

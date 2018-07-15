@@ -2,7 +2,7 @@
 #include <json-c/json.h>
 
 
-#define IFACE_LEN 8
+#define IFACE_LEN 16
 
 
 typedef enum pf_hit_reason {
