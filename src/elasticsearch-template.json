@@ -22,6 +22,9 @@
                 "date": {
                     "type": "date"
                 },
+                "log_date": {
+                    "type": "date"
+                },
                 "dest_addr": {
                     "type": "ip"
                 },

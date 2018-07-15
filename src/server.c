@@ -78,8 +78,12 @@ int handle_message(char* msg) {
                 result.date.minute,
                 result.date.second);
 
+            char time_now[sizeof "2018-07-15T13:49:05Z"];
+            strftime(time_now, sizeof time_now, "%FT%TZ", gmtime(&cur_t));
+
             json_object* jobj = json_object_new_object();
-            add_strfield(jobj, "date", date_formtted);
+            add_strfield(jobj, "date", time_now);
+            add_strfield(jobj, "log_date", date_formtted);
             add_strfield(jobj, "app", result.application);
             pfdata_to_json(&fwdata, jobj);
             const char* json_msg = json_object_to_json_string(jobj);
