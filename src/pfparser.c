@@ -36,7 +36,7 @@ int pfdata_parse(char* message, pf_data* result) {
             break;
 
             case 6: /*action*/
-                result->action = strcmp(token, "block") ? pf_hit_block : pf_hit_pass;  /*XXX*/
+                result->action = strcmp(token, "block") == 0 ? pf_hit_block : pf_hit_pass;  /*XXX*/
             break;
 
             case 7: /*direction*/
