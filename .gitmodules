@@ -4,3 +4,6 @@
 [submodule "deps/curl"]
 	path = deps/curl
 	url = https://github.com/curl/curl.git
+[submodule "deps/geoip-api-c"]
+	path = deps/geoip-api-c
+	url = https://github.com/maxmind/geoip-api-c.git

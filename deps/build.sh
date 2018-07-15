@@ -18,3 +18,11 @@ cd curl
 make -j24
 make install DESTDIR=$PWD/../build/
 cd ../
+
+
+cd geoip-api-c/
+./bootstrap
+./configure --enable-static
+make -j24
+make install DESTDIR=$PWD/../build/
+cd ../
