@@ -1,0 +1,73 @@
+{
+    "template": "firewall-*",
+    "index_patterns": [
+        "firewall-*"
+    ],
+    "settings": {
+        "number_of_replicas": 0,
+        "number_of_shards": 8
+    },
+    "mappings": {
+        "event": {
+            "_source": {
+                "enabled": true
+            },
+            "properties": {
+                "action": {
+                    "type": "keyword"
+                },
+                "app": {
+                    "type": "keyword"
+                },
+                "date": {
+                    "type": "date"
+                },
+                "dest_addr": {
+                    "type": "ip"
+                },
+                "dest_port": {
+                    "type": "long"
+                },
+                "interface": {
+                    "type": "keyword"
+                },
+                "ipversion": {
+                    "type": "short"
+                },
+                "length": {
+                    "type": "long"
+                },
+                "protocol_id": {
+                    "type": "short"
+                },
+                "src_addr": {
+                    "type": "ip"
+                },
+                "src_city": {
+                    "type": "keyword"
+                },
+                "src_country": {
+                    "type": "keyword"
+                },
+                "src_country_code": {
+                    "type": "keyword"
+                },
+                "src_port": {
+                    "type": "long"
+                },
+                "src_region": {
+                    "type": "keyword"
+                },
+                "src_state": {
+                    "type": "keyword"
+                },
+                "srcloc": {
+                    "type": "geo_point"
+                },
+                "ttl": {
+                    "type": "long"
+                }
+            }
+        }
+    }
+}

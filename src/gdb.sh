@@ -1,1 +1,1 @@
-gdb --args ./csyslog 4200
+gdb -ex=r --args ./csyslog 4200

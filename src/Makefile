@@ -1,24 +1,40 @@
 CC=cc
-CFLAGS := -g -I. -Wall -Wpedantic -I ../deps/build/usr/local/include/
-LDFLAGS = -L ../deps/build/usr/local/lib/
-LDLIBS = -ljson-c -lcurl -lpthread
+override CFLAGS += -g -I. -Wall -Wpedantic -I ../deps/build/usr/local/include/
+LIBPATH = ../deps/build/usr/local/lib/
+LDFLAGS = -L $(LIBPATH)
+LDLIBS = -ljson-c -lcurl -lpthread -lGeoIP
 LDFLAGS += $(LDLIBS)
 CFLAGS_STATIC = $(CFLAGS) --static
-OBJ=main.o pfparser.o sysparser.o
+OBJ=helpers.o pfparser.o sysparser.o msgbuffer.o geo.o elasticsearch.o server.o
+TESTS=$(patsubst %.c,%.test,$(wildcard tests/*.c))
+
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-csyslog: $(OBJ)
+csyslog: $(OBJ) main.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-.PHONY: clean
-clean:
-	rm -vf *.o csyslog
-
-static: $(OBJ)
+static: $(OBJ) main.o
 	$(CC) -o csyslog $^ $(LDFLAGS) --static
 
 .PHONY: docker
 docker: static
 	sudo docker build -t csyslog .
+
+
+.PHONY: clean
+clean: cleantests
+	rm -vf *.o csyslog
+
+.PHONY: cleantests
+cleantests:
+	rm -vf tests/*.test
+
+
+$(TESTS): tests/%.test: tests/%.c $(OBJ)
+	$(CC) -o $@ $(OBJ) tests/$*.c $(CFLAGS) $(LDFLAGS)
+
+.PHONY: tests
+tests: $(TESTS)
+	@bash -c 'for test in $^ ; do printf "======== %-30s ========\n" $$test ; LD_LIBRARY_PATH=$(LIBPATH) ./$$test ; printf "%48s\n" "RC: $$?" ; done'
