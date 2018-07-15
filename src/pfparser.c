@@ -327,9 +327,10 @@ int pfdata_to_json(pf_data* data, json_object* obj) {
     Populate the passed json_object obj with data from from pf_data data.
     */
     add_strfield(obj, "interface", data->iface);
-    add_intfield(obj, "ipversion", data->ipversion);
+    add_intfield(obj, "ip_version", data->ipversion);
 
     add_strfield(obj, "action", (char*)(pfhastr[data->action]));
+    add_strfield(obj, "direction", (char*)(pfdirstr[data->direction]));
 
     if(data->ipversion == 4) {
         add_intfield(obj, "ttl", data->ipv4_data.ttl);

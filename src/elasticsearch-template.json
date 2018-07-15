@@ -28,10 +28,13 @@
                 "dest_port": {
                     "type": "long"
                 },
+                "direction": {
+                    "type": "keyword"
+                },
                 "interface": {
                     "type": "keyword"
                 },
-                "ipversion": {
+                "ip_version": {
                     "type": "short"
                 },
                 "length": {
