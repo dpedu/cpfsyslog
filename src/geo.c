@@ -36,7 +36,6 @@ const char* geo_country_name(GeoIPRecord* rec) {
 }
 
 #ifdef TEST
-
 static const char * _mk_NA( const char * p ){
     return p ? p : "N/A";
 }
@@ -44,7 +43,7 @@ static const char * _mk_NA( const char * p ){
 int main(int argc, char** argv) {
     geo_init();
     char* host = "24.4.129.164";
-    char* host6 = "2601:647:4701:733:5bf:f3c2:f2b2:9c1f";
+    // char* host6 = "2601:647:4701:733:5bf:f3c2:f2b2:9c1f";
 
     GeoIPRecord *gir = GeoIP_record_by_name(gi, (const char *) host);  // GeoIP_record_by_name_v6
     // GeoIPRecord *gir = GeoIP_record_by_name_v6(gi, (const char *) host6);
@@ -64,5 +63,4 @@ int main(int argc, char** argv) {
 
     geo_close();
 }
-
 #endif

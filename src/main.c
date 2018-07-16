@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     char* portend;
     unsigned int portl;
     portl = strtol(argv[1], &portend, 10);
-    if (portend == NULL) {
+    if (portend == NULL || portend == argv[1]) {
         fprintf(stderr, "usage: %s <port>\n", argv[0]);
         exit(1);
     }

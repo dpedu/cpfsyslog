@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
@@ -40,7 +39,6 @@ void sig_handler(int signum) {
 
 
 int submit_events(char* message) {
-    // Send it
     if(put_events(message, "http://192.168.1.120:8298") == 0) {
         return 0;
     } else {
@@ -51,6 +49,10 @@ int submit_events(char* message) {
 
 
 char* collect_buffer(int max_size, int* howmany) {
+    /*
+    Pop up to $howmany items from the message buffer and allocate a buffer of at most $max_size bytes containing them.
+    Returns a char pointer to the buffer
+    */
     char header[72];
     // sprintf(header, "{\"index\": {\"_index\": \"firewall-test\", \"_type\": \"event\"}}\n");
     sprintf(header, "{\"index\": {\"_index\": \"firewall-%04d.%02d.%02d\", \"_type\": \"event\"}}\n",
@@ -89,7 +91,9 @@ char* collect_buffer(int max_size, int* howmany) {
 
 
 void* buffer_watch() {
-    /*flush the buffer when larger than 10 messages or older than 5 seconds*/
+    /*
+    Threaded task that flushes the buffer when it is larger than 10 messages or older than 5 seconds
+    */
     time_t last_flush = time(NULL);
     char* buffer = NULL;
     while(running) {
@@ -125,6 +129,9 @@ void* buffer_watch() {
 
 
 void start_bufwatch() {
+    /*
+    Start the bufwatch thread
+    */
     if (pthread_mutex_init(&buflock, NULL) != 0) {
         printf("\n mutex init failed\n");
         exit(1);
@@ -262,5 +269,5 @@ int run_server(int port) {
     bufwatch_cleanup();
     buff_freeall();
     geo_close();
-    return 1;
+    return 0;
 }
