@@ -11,7 +11,7 @@ void geo_init() {
     gi = GeoIP_open("GeoLiteCity.dat", GEOIP_INDEX_CACHE);
     gi6 = GeoIP_open("GeoLiteCityv6.dat", GEOIP_INDEX_CACHE);
     if (gi == NULL || gi6 == NULL) {
-        fprintf(stderr, "Error opening geoip databases\n");
+        fprintf(stderr, "Fatal: could not open geoip databases\n");
         exit(1);
     }
 }

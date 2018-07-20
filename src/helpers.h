@@ -7,3 +7,5 @@ http://www.decompile.com/cpp/faq/file_and_line_error_string.htm*/
 #define STR(x) _STR(x)
 
 void panic(const char* s);
+
+void die(const char* s);

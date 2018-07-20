@@ -1,0 +1,4 @@
+{
+    "elasticsearch": "http://127.0.0.1:8299",
+    "serverport": 4200
+}

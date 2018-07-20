@@ -1,1 +1,1 @@
-valgrind --leak-check=full --track-origins=yes -v  ./csyslog 4200
+valgrind --leak-check=full --track-origins=yes -v  ./csyslog config.json

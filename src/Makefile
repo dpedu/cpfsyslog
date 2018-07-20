@@ -5,7 +5,7 @@ LDFLAGS = -L $(LIBPATH)
 LDLIBS = -ljson-c -lcurl -lpthread -lGeoIP
 LDFLAGS += $(LDLIBS)
 CFLAGS_STATIC = $(CFLAGS) --static
-OBJ=helpers.o pfparser.o sysparser.o msgbuffer.o geo.o elasticsearch.o server.o
+OBJ=helpers.o pfparser.o sysparser.o msgbuffer.o geo.o elasticsearch.o server.o config.o
 TESTS=$(patsubst %.c,%.test,$(wildcard tests/*.c))
 
 

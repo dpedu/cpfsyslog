@@ -29,6 +29,8 @@ pthread_mutex_t buflock;
 time_t cur_t = {0};
 struct tm cur_time = {0};
 
+char* es_url = NULL;
+
 
 void sig_handler(int signum) {
     printf("\nExiting on signal %s\n", strsignal(signum));
@@ -39,7 +41,7 @@ void sig_handler(int signum) {
 
 
 int submit_events(char* message) {
-    if(put_events(message, "http://192.168.1.120:8298") == 0) {
+    if(put_events(message, es_url) == 0) {
         return 0;
     } else {
         printf("Failed to post messages!\n");
@@ -214,10 +216,12 @@ int handle_message(char* msg) {
 
 
 /*UDP server bits mostly lifted from https://cs.nyu.edu/~mwalfish/classes/16sp/classnotes/handout01.pdf*/
-int run_server(int port) {
-    geo_init();
+int run_server(int port, char* url) {
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
+
+    geo_init();
+    es_url = url;
 
     /*Create socket*/
     if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
