@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>
 
@@ -8,7 +9,7 @@ size_t write_data(char *dbit, size_t size, size_t nmemb, void *user_data) {
 }
 
 
-int put_events(char* data, char* es_url) {  // es_url should be a string like 'http://192.168.1.120:8298'
+int elastic_put_events(char* data, char* es_url) {  // es_url should be a string like 'http://192.168.1.120:8298'
     CURL *curl;
     CURLcode res;
 
@@ -34,10 +35,33 @@ int put_events(char* data, char* es_url) {  // es_url should be a string like 'h
     curl_easy_cleanup(curl);
     curl_global_cleanup();
 
-    if(res != CURLE_OK) {
-        // printf("%d %s\n", res, response);
-        printf("CURL returned: %d\n", res);
-    }
+    if(res != CURLE_OK)
+        printf("CURL: %s\n", curl_easy_strerror(res));
 
-    return res == CURLE_OK ? 0 : 1;
+    return res == CURLE_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+
+int elastic_check(char* es_url) {
+    CURL *curl;
+    CURLcode res;
+
+    char* endpoint = "/_cluster/health";
+    char final_url[strlen(es_url) + strlen(endpoint) + 1];
+    sprintf(final_url, "%s%s", es_url, endpoint);
+
+    curl = curl_easy_init(); // check this and all of these curl functions
+
+    curl_easy_setopt(curl, CURLOPT_URL, final_url);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);\
+
+    res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+
+    if(res != CURLE_OK)
+        printf("CURL: %s\n", curl_easy_strerror(res));
+
+    return res == CURLE_OK ? EXIT_SUCCESS : EXIT_FAILURE;
 }

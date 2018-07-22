@@ -41,7 +41,7 @@ void sig_handler(int signum) {
 
 
 int submit_events(char* message) {
-    if(put_events(message, es_url) == 0) {
+    if(elastic_put_events(message, es_url) == 0) {
         return 0;
     } else {
         printf("Failed to post messages!\n");
@@ -219,6 +219,9 @@ int handle_message(char* msg) {
 int run_server(int port, char* url) {
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
+
+    if(elastic_check(url) != EXIT_SUCCESS)
+        die("Failed to contact elasticsearch");
 
     geo_init();
     es_url = url;
