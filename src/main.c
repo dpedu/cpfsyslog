@@ -13,8 +13,8 @@ int main(int argc, const char** argv) {
 
     struct argparse_option options[] = {
         OPT_HELP(),
-        OPT_INTEGER('p', "port", &port, "server port"),
-        OPT_STRING ('u', "url",  &url,  "elasticsearch url"),
+        OPT_INTEGER('p', "port", &port, "server port",       .flags = OPT_REQUIRED),
+        OPT_STRING ('u', "url",  &url,  "elasticsearch url", .flags = OPT_REQUIRED),
         OPT_END()
     };
 

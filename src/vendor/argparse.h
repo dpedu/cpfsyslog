@@ -19,7 +19,7 @@ struct argparse;
 struct argparse_option;
 
 typedef int argparse_callback (struct argparse *self,
-                               const struct argparse_option *option);
+                               struct argparse_option *option);
 
 enum argparse_flag {
     ARGPARSE_STOP_AT_NON_OPTION = 1,
@@ -39,7 +39,8 @@ enum argparse_option_type {
 };
 
 enum argparse_option_flags {
-    OPT_NONEG = 1,              /* disable negation */
+    OPT_NONEG = 0x01,              /* disable negation */
+    OPT_REQUIRED = 0x02,           /* opt must be passed */
 };
 
 /**
@@ -87,7 +88,7 @@ struct argparse_option {
  */
 struct argparse {
     // user supplied
-    const struct argparse_option *options;
+    struct argparse_option *options;
     const char *const *usages;
     int flags;
     const char *description;    // a description after usage
@@ -102,7 +103,7 @@ struct argparse {
 
 // built-in callbacks
 int argparse_help_cb(struct argparse *self,
-                     const struct argparse_option *option);
+                     struct argparse_option *option);
 
 // built-in option macros
 #define OPT_END()        { ARGPARSE_OPT_END, 0, NULL, NULL, 0, NULL, 0, 0 }

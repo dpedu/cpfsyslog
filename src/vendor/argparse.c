@@ -34,7 +34,7 @@ prefix_cmp(const char *str, const char *prefix)
 }
 
 static void
-argparse_error(struct argparse *self, const struct argparse_option *opt,
+argparse_error(struct argparse *self, struct argparse_option *opt,
                const char *reason, int flags)
 {
     (void)self;
@@ -47,7 +47,7 @@ argparse_error(struct argparse *self, const struct argparse_option *opt,
 }
 
 static int
-argparse_getvalue(struct argparse *self, const struct argparse_option *opt,
+argparse_getvalue(struct argparse *self, struct argparse_option *opt,
                   int flags)
 {
     const char *s = NULL;
@@ -118,6 +118,8 @@ argparse_getvalue(struct argparse *self, const struct argparse_option *opt,
         assert(0);
     }
 
+    opt->flags &= ~OPT_REQUIRED;
+
 skipped:
     if (opt->callback) {
         return opt->callback(self, opt);
@@ -127,7 +129,7 @@ skipped:
 }
 
 static void
-argparse_options_check(const struct argparse_option *options)
+argparse_options_check(struct argparse_option *options)
 {
     for (; options->type != ARGPARSE_OPT_END; options++) {
         switch (options->type) {
@@ -147,7 +149,7 @@ argparse_options_check(const struct argparse_option *options)
 }
 
 static int
-argparse_short_opt(struct argparse *self, const struct argparse_option *options)
+argparse_short_opt(struct argparse *self, struct argparse_option *options)
 {
     for (; options->type != ARGPARSE_OPT_END; options++) {
         if (options->short_name == *self->optvalue) {
@@ -159,7 +161,7 @@ argparse_short_opt(struct argparse *self, const struct argparse_option *options)
 }
 
 static int
-argparse_long_opt(struct argparse *self, const struct argparse_option *options)
+argparse_long_opt(struct argparse *self, struct argparse_option *options)
 {
     for (; options->type != ARGPARSE_OPT_END; options++) {
         const char *rest;
@@ -216,6 +218,17 @@ argparse_describe(struct argparse *self, const char *description,
 {
     self->description = description;
     self->epilog      = epilog;
+}
+
+void
+argparse_check_required(struct argparse* self) {
+    struct argparse_option *opt;
+    opt = self->options;
+    for (; opt->type != ARGPARSE_OPT_END; opt++) {
+        if(opt->flags & OPT_REQUIRED) {
+            argparse_error(self, opt, "is required", OPT_LONG);
+        }
+    }
 }
 
 int
@@ -282,6 +295,8 @@ end:
             self->argc * sizeof(*self->out));
     self->out[self->cpidx + self->argc] = NULL;
 
+    argparse_check_required(self);
+
     return self->cpidx + self->argc;
 }
 
@@ -302,13 +317,13 @@ argparse_usage(struct argparse *self)
 
     fputc('\n', stdout);
 
-    const struct argparse_option *options;
+    struct argparse_option *options;
 
     // figure out best width
     size_t usage_opts_width = 0;
-    size_t len;
     options = self->options;
     for (; options->type != ARGPARSE_OPT_END; options++) {
+        size_t len;
         len = 0;
         if ((options)->short_name) {
             len += 2;
@@ -321,7 +336,7 @@ argparse_usage(struct argparse *self)
         }
         if (options->type == ARGPARSE_OPT_INTEGER) {
             len += strlen("=<int>");
-          }
+		  }
         if (options->type == ARGPARSE_OPT_FLOAT) {
             len += strlen("=<flt>");
         } else if (options->type == ARGPARSE_OPT_STRING) {
@@ -377,7 +392,7 @@ argparse_usage(struct argparse *self)
 }
 
 int
-argparse_help_cb(struct argparse *self, const struct argparse_option *option)
+argparse_help_cb(struct argparse *self, struct argparse_option *option)
 {
     (void)option;
     argparse_usage(self);
