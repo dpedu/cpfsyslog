@@ -2,36 +2,27 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <limits.h>
-#include "config.h"
 #include "server.h"
 #include "helpers.h"
+#include "vendor/argparse.h"
 
 
-int main(int argc, char** argv) {
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s <config.json>\n", argv[0]);
-        exit(1);
-    }
+int main(int argc, const char** argv) {
+    int port = -1;
+    char* url = NULL;
 
-    /*Parse port number to integer*/
-    /*char* portend;
-    unsigned int portl;
-    portl = strtol(argv[1], &portend, 10);
-    if (portend == NULL || portend == argv[1]) {
-        fprintf(stderr, "usage: %s <port>\n", argv[0]);
-        exit(1);
-    }
-    assert(portl < USHRT_MAX);
-    unsigned short port = (unsigned short)portl;*/
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_INTEGER('p', "port", &port, "server port"),
+        OPT_STRING ('u', "url",  &url,  "elasticsearch url"),
+        OPT_END()
+    };
 
-    struct config* conf = config_load(argv[1]);
+    struct argparse argparse;
+    argparse_init(&argparse, options, NULL, 0);
+    argparse_parse(&argparse, argc, argv);
 
-    printf("url: %s\n", conf->url);
-    printf("port: %d\n", conf->port);
-
-    run_server(conf->port, conf->url);
-
-    config_free(conf);
+    run_server(port, url);
 
     exit(EXIT_SUCCESS);
 }

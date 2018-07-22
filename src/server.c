@@ -99,7 +99,7 @@ void* buffer_watch() {
     time_t last_flush = time(NULL);
     char* buffer = NULL;
     while(running) {
-        usleep(100 * 1000);
+        nanosleep(&(const struct timespec){0, 1000000}, NULL);
         time_t now = time(NULL);
 
         pthread_mutex_lock(&buflock);

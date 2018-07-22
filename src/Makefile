@@ -1,11 +1,11 @@
 CC=cc
-override CFLAGS += -g -I. -Wall -Wpedantic -I ../deps/build/usr/local/include/
+override CFLAGS += -g -I. -Wall -Wpedantic -I ../deps/build/usr/local/include/ -std=gnu11
 LIBPATH = ../deps/build/usr/local/lib/
 LDFLAGS = -L $(LIBPATH)
 LDLIBS = -ljson-c -lcurl -lpthread -lGeoIP
 LDFLAGS += $(LDLIBS)
 CFLAGS_STATIC = $(CFLAGS) --static
-OBJ=helpers.o pfparser.o sysparser.o msgbuffer.o geo.o elasticsearch.o server.o config.o
+OBJ=helpers.o pfparser.o sysparser.o msgbuffer.o geo.o elasticsearch.o server.o vendor/argparse.o
 TESTS=$(patsubst %.c,%.test,$(wildcard tests/*.c))
 
 
