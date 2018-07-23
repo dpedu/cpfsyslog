@@ -49,6 +49,9 @@
                 "src_addr": {
                     "type": "ip"
                 },
+                "endpoint": {
+                    "type": "ip"
+                },
                 "src_city": {
                     "type": "keyword"
                 },

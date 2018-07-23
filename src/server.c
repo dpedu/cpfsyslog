@@ -7,7 +7,7 @@
 #include <time.h>
 #include <assert.h>
 #include <pthread.h>
-
+#include <arpa/inet.h>
 #include <json-c/json.h>
 
 #include "helpers.h"
@@ -151,7 +151,7 @@ void bufwatch_cleanup() {
 }
 
 
-int handle_message(char* msg) {
+int handle_message(char* msg, struct sockaddr_in* sender) {
     /*TODO should we check that msg[size_recvd] == \0 ?
     printf("From host %s src port %d got message %.*s\n",
            inet_ntoa(my_peer_addr.sin_addr), ntohs(my_peer_addr.sin_port), size_recvd, msg);*/
@@ -200,6 +200,11 @@ int handle_message(char* msg) {
             add_strfield(jobj, "date", time_now);
             add_strfield(jobj, "log_date", date_formtted);
             add_strfield(jobj, "app", result.application);
+
+            char sender_ip[64]; // 40
+            inet_ntop(AF_INET, &sender->sin_addr, sender_ip, sizeof(sender_ip));
+            add_strfield(jobj, "endpoint", sender_ip);
+
             pfdata_to_json(&fwdata, jobj);
             const char* json_msg = json_object_to_json_string(jobj);
             // printf("%s\n", json_msg);
@@ -235,11 +240,8 @@ int run_server(int port, char* url) {
     setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
     /*Bind socket*/
-    struct sockaddr_in my_addr, my_peer_addr;
-    memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-    my_addr.sin_port = htons(port); /*host to network endianess for a short - converts a *s*hort from the *h*ost's to *n*etwork's endianness*/
+    struct sockaddr_in peer_addr;
+    struct sockaddr_in my_addr = {AF_INET, htons(port), (struct in_addr){INADDR_ANY}};
     if (bind(sock_fd, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in)) < 0)
         panic("bind failed");
 
@@ -253,12 +255,13 @@ int run_server(int port, char* url) {
                                    msg,                             /* buffer */
                                    sizeof(msg),                     /* buffer length */
                                    0,                               /* no flags */
-                                   (struct sockaddr*)&my_peer_addr, /* who’s sending */
+                                   (struct sockaddr*)&peer_addr,    /* who's sending */
                                    &addrlen                         /* length of buffer to receive peer info */
                                    )) < 0) {
             if (running) panic("recvfrom");
             else break; /*sock was closed by exit signal*/
         }
+
         assert(size_recvd < sizeof(msg));  /*messages can't be longer than our buffer. TODO if they are longer we should
         dump it and wait until the next loop. if the next buffer is some portion of a too-long message, we can expect
         the various parsing below to fail.*/
@@ -267,7 +270,7 @@ int run_server(int port, char* url) {
         msg[size_recvd] = '\0'; /*We receive 1 full string at a time*/
         /*printf("\nGot message: %s\n", msg);*/
 
-        handle_message(msg);
+        handle_message(msg, &peer_addr);
 
         printf(".");
         fflush(stdout);
