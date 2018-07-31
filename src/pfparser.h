@@ -110,3 +110,7 @@ void add_intfield(json_object* obj, char* name, int value);
 void add_strfield(json_object* obj, char* name, char* value);
 
 int pfdata_to_json(pf_data* data, json_object* obj);
+
+void add_doublefield(json_object* obj, char* name, double value);
+
+const char* null_unknown(const char* p);

@@ -138,3 +138,33 @@ int month2num(char* month) {
     }
     return -1;
 }
+
+
+#ifdef AFL
+
+int main() {
+    char *buffer;
+    size_t bufsize = 4096;
+    size_t characters;
+
+    buffer = (char *)malloc(bufsize * sizeof(char));
+    if (buffer == NULL)
+        die("Unable to allocate buffer");
+
+    characters = getline(&buffer,&bufsize,stdin);
+
+    struct SysMessage data = {0};
+    int result = sysmsg_parse(&data, buffer);
+    printf("sysparser result: %d\n", result);
+
+    if(result == 0) {
+        pf_data fwdata = {0};
+        result = pfdata_parse(buffer, &fwdata);
+        printf("pfparser result: %d\n", result);
+    }
+
+    return result;
+}
+
+#endif
+

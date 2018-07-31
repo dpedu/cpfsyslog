@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "pfparser.h"
+#include "helpers.h"
 #include "geo.h"
 
 
@@ -365,21 +366,6 @@ int pfdata_to_json(pf_data* data, json_object* obj) {
         }
     }
 
-    GeoIPRecord* ginfo = (data->ipversion == 4 ? geo_get(data->src_addr)
-                                               : geo_get6(data->src_addr));
-    if(ginfo != NULL) {
-        json_object* srcloc = json_object_new_object();
-        json_object_object_add(obj, "srcloc", srcloc);
-        add_doublefield(srcloc, "lat", ginfo->latitude);
-        add_doublefield(srcloc, "lon", ginfo->longitude);
-        add_strfield(obj, "src_country", (char*)null_unknown(geo_country_name(ginfo)));
-        add_strfield(obj, "src_country_code", (char*)null_unknown(ginfo->country_code));
-        add_strfield(obj, "src_region",  (char*)null_unknown(ginfo->region));
-        add_strfield(obj, "src_state",   (char*)null_unknown(GeoIP_region_name_by_code(ginfo->country_code, ginfo->region)));
-        add_strfield(obj, "src_city",    (char*)null_unknown(ginfo->city));
-    }
-
-    GeoIPRecord_delete(ginfo);
-
     return 0;
 }
+

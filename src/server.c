@@ -206,6 +206,24 @@ int handle_message(char* msg, struct sockaddr_in* sender) {
             add_strfield(jobj, "endpoint", sender_ip);
 
             pfdata_to_json(&fwdata, jobj);
+
+            GeoIPRecord* ginfo = (fwdata.ipversion == 4 ? geo_get(fwdata.src_addr)
+                                                        : geo_get6(fwdata.src_addr));
+        if(ginfo != NULL) {
+            json_object* srcloc = json_object_new_object();
+            json_object_object_add(jobj, "srcloc", srcloc);
+            add_doublefield(srcloc, "lat", ginfo->latitude);
+            add_doublefield(srcloc, "lon", ginfo->longitude);
+            add_strfield(jobj, "src_country", (char*)null_unknown(geo_country_name(ginfo)));
+            add_strfield(jobj, "src_country_code", (char*)null_unknown(ginfo->country_code));
+            add_strfield(jobj, "src_region",  (char*)null_unknown(ginfo->region));
+            add_strfield(jobj, "src_state",   (char*)null_unknown(GeoIP_region_name_by_code(ginfo->country_code, ginfo->region)));
+            add_strfield(jobj, "src_city",    (char*)null_unknown(ginfo->city));
+        }
+
+        GeoIPRecord_delete(ginfo);
+
+
             const char* json_msg = json_object_to_json_string(jobj);
             // printf("%s\n", json_msg);
             {
