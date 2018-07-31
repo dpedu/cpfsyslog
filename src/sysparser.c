@@ -21,6 +21,7 @@ int parse_priority(char* message, int* priority, int* position) {
     memset(&digits, '\0', sizeof(digits));
     int num_digits = 0;
     int pos = 1;
+    int found_end = 0;
     /*bool found_priority_end = false; // TODO*/
     while (pos < 4) {
         if(!isdigit(message[pos])) return 1; /*priority must be numeric*/
@@ -28,10 +29,11 @@ int parse_priority(char* message, int* priority, int* position) {
         num_digits++;
         pos++;
         if (message[pos] == '>') {
+            found_end = 1;
             break;
         }
     }
-    /*TODO if escape the loop because pos >= 4, we never found '>'*/
+    if (found_end == 0) return 1;
     if (num_digits == 0) return 1; /*empty priority <> ?*/
     *priority = atoi(digits);
     *position = pos;
@@ -63,6 +65,7 @@ int parse_application(char* message, char* application, int* position) {
     if(sscanf(message + *position, "%"STR(MSG_APP_LEN)"s%n", application, &app_length) != 1) {  /*%n not counted in returned field count*/
         return 1;  /*Failed to parse all desired fields*/
     }
+    if(app_length - 1 > MSG_APP_LEN) return 1;
     if(strlen(application) < 2) return 1;  /*Expect at least chars*/
     application[app_length-1] = '\0';  /*Remove the trailing :*/
     *position += app_length;
@@ -92,6 +95,7 @@ int sysmsg_parse(struct SysMessage* result, char* message) {
         return 1;
     }
     result->date = date;
+    if(message[position] != ' ') return 1; // Something other than a space after the date
     position++;  /*position now at beginning of HOSTNAME field*/
 
     /*Parse APPLICATION
@@ -99,6 +103,7 @@ int sysmsg_parse(struct SysMessage* result, char* message) {
     char application[MSG_APP_LEN];
     if(parse_application(message, application, &position) != 0) return 1;
     memcpy(result->application, application, sizeof(application));
+    if(message[position] != ' ') return 1; // Something other than a space after the app name
     position += 1; /*pass over the space*/
 
     /*printf("remaining: '%s'\n", message + position);*/
