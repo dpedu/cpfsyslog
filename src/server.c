@@ -163,77 +163,77 @@ int handle_message(char* msg, struct sockaddr_in* sender) {
     /*parse syslog message into fields*/
     if(sysmsg_parse(&result, msg) != 0) {
         printf("Failed to parse message: %s", msg);
-    } else {
-        /*printf("syslog message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n",
-               result.priority,
-               result.application,
-               result.date.month,
-               result.date.day,
-               result.date.hour,
-               result.date.minute,
-               result.date.second);*/
-
-        /*parse MSG field into pfsense data*/
-        pf_data fwdata = {0};
-        //memset(&fwdata, 0, sizeof(fwdata));
-        if(pfdata_parse(msg, &fwdata) != 0) {
-            printf("Failed to parse pfsense data: %s\n\n", msg);
-        } else {
-            // pfdata_print(&fwdata);
-
-            cur_t = time(NULL);
-            cur_time = *localtime(&cur_t);
-
-            char date_formtted[32];
-            sprintf(date_formtted, "%04d-%02d-%02dT%02d:%02d:%02dZ",
-                cur_time.tm_year + 1900,
-                month2num(result.date.month),
-                result.date.day,
-                result.date.hour,
-                result.date.minute,
-                result.date.second);
-
-            char time_now[sizeof "2018-07-15T13:49:05Z"];
-            strftime(time_now, sizeof time_now, "%FT%TZ", gmtime(&cur_t));
-
-            json_object* jobj = json_object_new_object();
-            add_strfield(jobj, "date", time_now);
-            add_strfield(jobj, "log_date", date_formtted);
-            add_strfield(jobj, "app", result.application);
-
-            char sender_ip[64]; // 40
-            inet_ntop(AF_INET, &sender->sin_addr, sender_ip, sizeof(sender_ip));
-            add_strfield(jobj, "endpoint", sender_ip);
-
-            pfdata_to_json(&fwdata, jobj);
-
-            GeoIPRecord* ginfo = (fwdata.ipversion == 4 ? geo_get(fwdata.src_addr)
-                                                        : geo_get6(fwdata.src_addr));
-        if(ginfo != NULL) {
-            json_object* srcloc = json_object_new_object();
-            json_object_object_add(jobj, "srcloc", srcloc);
-            add_doublefield(srcloc, "lat", ginfo->latitude);
-            add_doublefield(srcloc, "lon", ginfo->longitude);
-            add_strfield(jobj, "src_country", (char*)null_unknown(geo_country_name(ginfo)));
-            add_strfield(jobj, "src_country_code", (char*)null_unknown(ginfo->country_code));
-            add_strfield(jobj, "src_region",  (char*)null_unknown(ginfo->region));
-            add_strfield(jobj, "src_state",   (char*)null_unknown(GeoIP_region_name_by_code(ginfo->country_code, ginfo->region)));
-            add_strfield(jobj, "src_city",    (char*)null_unknown(ginfo->city));
-        }
-
-        GeoIPRecord_delete(ginfo);
-
-
-            const char* json_msg = json_object_to_json_string(jobj);
-            // printf("%s\n", json_msg);
-            {
-                pthread_mutex_lock(&buflock);
-                buff_push(strdup(json_msg));  // Copy message to heap and push to buffer
-                pthread_mutex_unlock(&buflock);
-            }
-            json_object_put(jobj);
-        }
+        return 1;
     }
+
+    /*printf("syslog message is valid:\n\tpriority: %d\n\tapplication: %s\n\tDate: %s %d %02d:%02d:%02d\n",
+           result.priority,
+           result.application,
+           result.date.month,
+           result.date.day,
+           result.date.hour,
+           result.date.minute,
+           result.date.second);*/
+
+    /*parse MSG field into pfsense data*/
+    pf_data fwdata = {0};
+    //memset(&fwdata, 0, sizeof(fwdata));
+    if(pfdata_parse(msg, &fwdata) != 0) {
+        printf("Failed to parse pfsense data: %s\n\n", msg);
+        return 1;
+    }
+    // pfdata_print(&fwdata);
+    cur_t = time(NULL);
+    cur_time = *localtime(&cur_t);
+
+    char date_formtted[32];
+    sprintf(date_formtted, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+        cur_time.tm_year + 1900,
+        month2num(result.date.month),
+        result.date.day,
+        result.date.hour,
+        result.date.minute,
+        result.date.second);
+
+    char time_now[sizeof "2018-07-15T13:49:05Z"];
+    strftime(time_now, sizeof time_now, "%FT%TZ", gmtime(&cur_t));
+
+    json_object* jobj = json_object_new_object();
+    add_strfield(jobj, "date", time_now);
+    add_strfield(jobj, "log_date", date_formtted);
+    add_strfield(jobj, "app", result.application);
+
+    char sender_ip[64]; // 40
+    inet_ntop(AF_INET, &sender->sin_addr, sender_ip, sizeof(sender_ip));
+    add_strfield(jobj, "endpoint", sender_ip);
+
+    pfdata_to_json(&fwdata, jobj);
+
+    GeoIPRecord* ginfo = (fwdata.ipversion == 4 ? geo_get(fwdata.src_addr)
+                                                : geo_get6(fwdata.src_addr));
+    if(ginfo != NULL) {
+        json_object* srcloc = json_object_new_object();
+        json_object_object_add(jobj, "srcloc", srcloc);
+        add_doublefield(srcloc, "lat", ginfo->latitude);
+        add_doublefield(srcloc, "lon", ginfo->longitude);
+        add_strfield(jobj, "src_country", (char*)null_unknown(geo_country_name(ginfo)));
+        add_strfield(jobj, "src_country_code", (char*)null_unknown(ginfo->country_code));
+        add_strfield(jobj, "src_region",  (char*)null_unknown(ginfo->region));
+        add_strfield(jobj, "src_state",   (char*)null_unknown(GeoIP_region_name_by_code(ginfo->country_code, ginfo->region)));
+        add_strfield(jobj, "src_city",    (char*)null_unknown(ginfo->city));
+    }
+
+    GeoIPRecord_delete(ginfo);
+
+    const char* json_msg = json_object_to_json_string(jobj);
+    // printf("%s\n", json_msg);
+    {
+        pthread_mutex_lock(&buflock);
+        buff_push(strdup(json_msg));  // Copy message to heap and push to buffer
+        pthread_mutex_unlock(&buflock);
+    }
+    json_object_put(jobj);
+
     return 0;
 }
 
